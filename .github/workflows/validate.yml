@@ -33,7 +33,7 @@ jobs:
           cache-dependency-path: receipts-function/go.sum
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: receipts-function
@@ -63,7 +63,7 @@ jobs:
           cache-dependency-path: form-submission-job/go.sum
 
       - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: form-submission-job
