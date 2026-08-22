@@ -90,7 +90,7 @@ This directory provides the Terraform infrastructure as code (IaC) required for 
 | `form-submission-job-sa` | `roles/storage.objectAdmin`<br>`roles/logging.logWriter` | Cloud Run Job batch submission execution |
 | `scheduler-job-invoker-sa` | `roles/run.invoker` | Cloud Scheduler trigger invocation |
 | `gdrive-uploader-sa` | `roles/storage.objectCreator` (on `unprocessed` bucket) | Google Drive sync script upload |
-| `github-actions-sa` | `roles/cloudfunctions.developer`<br>`roles/run.developer`<br>`roles/artifactregistry.writer`<br>`roles/storage.admin`<br>`roles/eventarc.admin`<br>`roles/iam.serviceAccountUser` | GitHub Actions CI/CD deployment |
+| `github-actions-sa` | `roles/cloudfunctions.developer`<br>`roles/run.developer`<br>`roles/cloudbuild.builds.editor`<br>`roles/cloudscheduler.admin`<br>`roles/artifactregistry.writer`<br>`roles/storage.admin`<br>`roles/eventarc.admin`<br>`roles/iam.serviceAccountUser` | GitHub Actions CI/CD deployment |
 
 ### 3. BigQuery Dataset & Table
 

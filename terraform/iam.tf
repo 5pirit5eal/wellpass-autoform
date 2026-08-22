@@ -159,6 +159,18 @@ resource "google_project_iam_member" "github_actions_eventarc_admin" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+resource "google_project_iam_member" "github_actions_cloudbuild_editor" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.editor"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_scheduler_admin" {
+  project = var.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # 4. Google Drive to GCS Uploader Service Account
 # ---------------------------------------------------------------------------------------------------------------------
@@ -235,4 +247,11 @@ resource "google_project_iam_member" "scheduler_run_invoker" {
   project = var.project_id
   role    = "roles/run.invoker"
   member  = "serviceAccount:${google_service_account.scheduler_job_invoker.email}"
+}
+
+# Allow GitHub Actions to configure Cloud Scheduler with the scheduler invoker service account
+resource "google_service_account_iam_member" "github_actions_act_as_scheduler_sa" {
+  service_account_id = google_service_account.scheduler_job_invoker.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
 }
