@@ -163,9 +163,10 @@ deploy-job() {
   local job_sa="${SUBMISSION_JOB_SERVICE_ACCOUNT:-form-submission-job-sa@${project}.iam.gserviceaccount.com}"
   local image_tag="${region}-docker.pkg.dev/${project}/${repo_name}/${job_name}:latest"
 
-  echo "==> Building container image via Google Cloud Build: ${image_tag}..."
+  echo "==> Building container image via Google Cloud Build in ${region}: ${image_tag}..."
   gcloud builds submit . \
     --project="${project}" \
+    --region="${region}" \
     --tag="${image_tag}"
 
   echo "==> Deploying Cloud Run Job: ${job_name} in ${region}..."
