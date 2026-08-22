@@ -155,11 +155,13 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 
 		log.Printf("Submitting batch %d/%d (Batch ID: %s, %d tickets)...", idx+1, len(batches), batchID, len(batchTickets))
 		subResult, err := p.submitter.Submit(ctx, subBatch)
+		if subResult != nil {
+			report.BatchResults = append(report.BatchResults, subResult)
+			p.uploadBatchScreenshots(ctx, month, batchID, subResult.Screenshots)
+		}
 		if err != nil {
 			return report, fmt.Errorf("submission failed for batch %s: %w", batchID, err)
 		}
-
-		report.BatchResults = append(report.BatchResults, subResult)
 
 		if subResult.Success {
 			report.TotalSubmitted += len(batchTickets)
@@ -178,6 +180,28 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 		report.TotalSubmitted, report.TotalDiscovered, report.BatchesCount)
 
 	return report, nil
+}
+
+func (p *JobProcessor) uploadBatchScreenshots(ctx context.Context, month, batchID string, screenshots []string) {
+	if len(screenshots) == 0 || p.cfg.FailedBucket == "" {
+		return
+	}
+	log.Printf("Uploading %d screenshot(s) to inspection bucket gs://%s/screenshots/%s/%s/...", len(screenshots), p.cfg.FailedBucket, month, batchID)
+	for _, sPath := range screenshots {
+		if sPath == "" {
+			continue
+		}
+		base := filepath.Base(sPath)
+		targetObj := fmt.Sprintf("screenshots/%s/%s/%s", month, batchID, base)
+		meta := map[string]string{
+			"batch_id":    batchID,
+			"month":       month,
+			"uploaded_at": time.Now().UTC().Format(time.RFC3339),
+		}
+		if err := p.storage.UploadFile(ctx, p.cfg.FailedBucket, targetObj, sPath, "image/png", meta); err != nil {
+			log.Printf("Warning: failed to upload screenshot %s to gs://%s/%s: %v", sPath, p.cfg.FailedBucket, targetObj, err)
+		}
+	}
 }
 
 func chunkTickets(tickets []submitter.SubmissionTicket, chunkSize int) [][]submitter.SubmissionTicket {

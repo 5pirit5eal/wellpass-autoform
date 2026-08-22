@@ -26,7 +26,7 @@ The function extracts structured receipt metadata, verifies there are no duplica
 ## Environment Variables
 
 | Variable | Required | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `SOURCE_BUCKET` | **Yes** | — | GCS bucket where incoming receipts are uploaded to trigger the function |
 | `TARGET_BUCKET` | **Yes** | — | GCS bucket for successfully processed receipts with attached metadata |
 | `FAILED_BUCKET` | **Yes** | — | GCS bucket for conflicting or failed receipts |
@@ -68,6 +68,7 @@ receipts-function/
 ### 1. Set Up Environment
 
 Copy the example `.env` file:
+
 ```bash
 cp .env.example .env
 # Edit .env with your SOURCE_BUCKET, TARGET_BUCKET, FAILED_BUCKET, and PROJECT_ID
@@ -112,12 +113,15 @@ The deployment is automated using `gcloud` CLI commands via `Taskfile.sh`.
 ### Prerequisites
 
 1. Set up and authenticate `gcloud`:
+
    ```bash
    ./Taskfile.sh setup-gcloud
    # or
    ./Taskfile.sh authenticate
    ```
+
 2. Enable the required GCP services:
+
    ```bash
    gcloud services enable \
      run.googleapis.com \
@@ -138,6 +142,7 @@ Deploy the function triggered by Cloud Storage uploads:
 ```
 
 Equivalent direct `gcloud` command:
+
 ```bash
 gcloud functions deploy process-receipt \
   --gen2 \

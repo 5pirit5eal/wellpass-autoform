@@ -188,3 +188,35 @@ func (s *GCSStorageService) MoveToFailed(ctx context.Context, srcBucket, dstBuck
 func (s *GCSStorageService) DeleteObject(ctx context.Context, bucket, objectName string) error {
 	return s.client.Bucket(bucket).Object(objectName).Delete(ctx)
 }
+
+// UploadFile uploads a local file to GCS with custom metadata and content-type.
+func (s *GCSStorageService) UploadFile(ctx context.Context, bucket, objectName, localFilePath, contentType string, metadata map[string]string) error {
+	f, err := os.Open(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open local file %s for upload: %w", localFilePath, err)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	bkt := s.client.Bucket(bucket)
+	obj := bkt.Object(objectName)
+	w := obj.NewWriter(ctx)
+	if contentType != "" {
+		w.ContentType = contentType
+	}
+	if metadata != nil {
+		w.Metadata = metadata
+	}
+
+	if _, err := io.Copy(w, f); err != nil {
+		_ = w.Close()
+		return fmt.Errorf("failed to copy %s to gs://%s/%s: %w", localFilePath, bucket, objectName, err)
+	}
+
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("failed to finalize upload to gs://%s/%s: %w", bucket, objectName, err)
+	}
+
+	return nil
+}

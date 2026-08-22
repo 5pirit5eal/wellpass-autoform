@@ -76,4 +76,5 @@ type StorageService interface {
 	MoveToSubmitted(ctx context.Context, srcBucket, dstBucket, objectName, monthFolder, batchID string) error
 	MoveToFailed(ctx context.Context, srcBucket, dstBucket, objectName, monthFolder, reason string) error
 	DeleteObject(ctx context.Context, bucket, objectName string) error
+	UploadFile(ctx context.Context, bucket, objectName, localFilePath, contentType string, metadata map[string]string) error
 }

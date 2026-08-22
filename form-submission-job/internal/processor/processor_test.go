@@ -59,6 +59,12 @@ func TestJobProcessorWorkflow(t *testing.T) {
 	mockMatch := matcher.NewPoolMatcher(nil)
 	mockSub := &submitter.MockSubmitter{}
 
+	mockShot := "/tmp/mock_screenshot.png"
+	_ = os.WriteFile(mockShot, []byte("fake png content"), 0644)
+	defer func() {
+		_ = os.Remove(mockShot)
+	}()
+
 	proc := NewJobProcessor(cfg, mockStore, mockMatch, mockSub, tempDir)
 
 	report, err := proc.Run(context.Background())
@@ -82,6 +88,9 @@ func TestJobProcessorWorkflow(t *testing.T) {
 	}
 	if len(mockStore.DeletedList) != 2 {
 		t.Errorf("expected 2 items deleted from processed bucket, got %d", len(mockStore.DeletedList))
+	}
+	if len(mockStore.UploadedFiles) != 1 {
+		t.Errorf("expected 1 screenshot uploaded to failed bucket, got %d", len(mockStore.UploadedFiles))
 	}
 }
 
