@@ -1,15 +1,20 @@
 output "source_bucket_name" {
-  description = "Name of the source bucket for unprocessed receipts"
+  description = "Name of the source bucket for unprocessed receipts (standard)"
   value       = google_storage_bucket.unprocessed_receipts.name
 }
 
 output "processed_bucket_name" {
-  description = "Name of the target archive bucket for processed receipts"
+  description = "Name of the transitional bucket for processed receipts (standard)"
   value       = google_storage_bucket.processed_receipts.name
 }
 
+output "submitted_bucket_name" {
+  description = "Name of the archive bucket for submitted receipts (archive, 10-year retention)"
+  value       = google_storage_bucket.submitted_receipts.name
+}
+
 output "failed_bucket_name" {
-  description = "Name of the bucket for failed receipts or conflicts"
+  description = "Name of the coldline bucket for failed receipts or conflicts (coldline)"
   value       = google_storage_bucket.failed_receipts.name
 }
 
@@ -26,6 +31,16 @@ output "bigquery_table_id" {
 output "artifact_registry_repository_name" {
   description = "Name of the Artifact Registry repository"
   value       = google_artifact_registry_repository.receipts.name
+}
+
+output "form_submission_job_service_account_email" {
+  description = "Email of the Form Submission Cloud Run Job runtime service account"
+  value       = google_service_account.form_submission_job.email
+}
+
+output "scheduler_job_invoker_service_account_email" {
+  description = "Email of the Cloud Scheduler Job Invoker service account"
+  value       = google_service_account.scheduler_job_invoker.email
 }
 
 output "function_service_account_email" {

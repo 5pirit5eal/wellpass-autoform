@@ -158,9 +158,69 @@ resource "google_service_account" "gdrive_uploader" {
   depends_on = [google_project_service.apis]
 }
 
-# Grant objectCreator role on the unprocessed (source) receipts bucket
+# Grant storage admin role on the unprocessed (source) receipts bucket
 resource "google_storage_bucket_iam_member" "gdrive_uploader_creator" {
   bucket = google_storage_bucket.unprocessed_receipts.name
-  role   = "roles/storage.objectCreator"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.gdrive_uploader.email}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 5. Form Submission Cloud Run Job Runtime Service Account
+# ---------------------------------------------------------------------------------------------------------------------
+resource "google_service_account" "form_submission_job" {
+  account_id   = "form-submission-job-sa"
+  display_name = "Form Submission Job Service Account"
+  description  = "Runtime service account used by the form submission Cloud Run job"
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "form_submission_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
+# Bucket access for the Job Service Account (read processed, write submitted archive, write failed coldline, delete from processed)
+resource "google_storage_bucket_iam_member" "form_submission_processed_admin" {
+  bucket = google_storage_bucket.processed_receipts.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
+resource "google_storage_bucket_iam_member" "form_submission_submitted_admin" {
+  bucket = google_storage_bucket.submitted_receipts.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
+resource "google_storage_bucket_iam_member" "form_submission_failed_admin" {
+  bucket = google_storage_bucket.failed_receipts.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
+# Allow GitHub Actions to act as the job runtime service account
+resource "google_service_account_iam_member" "github_actions_act_as_job_sa" {
+  service_account_id = google_service_account.form_submission_job.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 6. Cloud Scheduler Service Account to trigger Cloud Run Job
+# ---------------------------------------------------------------------------------------------------------------------
+resource "google_service_account" "scheduler_job_invoker" {
+  account_id   = "scheduler-job-invoker-sa"
+  display_name = "Cloud Scheduler Job Invoker Service Account"
+  description  = "Service account used by Cloud Scheduler to invoke the form submission Cloud Run job"
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "scheduler_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.scheduler_job_invoker.email}"
 }

@@ -6,6 +6,7 @@ environment = "prod"
 # Optional explicit bucket names (defaults to auto-generated project-scoped names)
 # source_bucket_name    = "my-receipts-unprocessed"
 # processed_bucket_name = "my-receipts-processed"
+# submitted_bucket_name = "my-receipts-submitted"
 # failed_bucket_name    = "my-receipts-failed"
 
 # BigQuery Configuration
@@ -19,3 +20,13 @@ artifact_registry_repo_id = "golang"
 github_owner            = "5pirit5eal"
 github_repository       = "wellpass-autoform"
 enable_github_resources = true
+
+# Form Submission Job Configuration
+wellpass_email      = "member@example.com"
+wellpass_first_name = "Max"
+wellpass_last_name  = "Mustermann"
+wellpass_iban       = "DE12345678901234567890"
+wellpass_bic        = "GENODEM1GLS"
+submission_dry_run  = true
+scheduler_cron      = "0 8 2 * *"
+scheduler_time_zone = "Europe/Berlin"

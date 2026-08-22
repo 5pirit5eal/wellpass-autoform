@@ -164,6 +164,11 @@ venv.bak/
 *service-account*.json
 client_secret*.json
 
+# Playwright CLI & artifacts
+.playwright-cli/
+/tmp/playwright-test-screenshots/
+/tmp/form-submission-screenshots/
+
 # Go
 bin/
 *.exe

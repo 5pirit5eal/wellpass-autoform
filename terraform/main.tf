@@ -1,12 +1,14 @@
 locals {
   source_bucket    = var.source_bucket_name != "" ? var.source_bucket_name : "${var.project_id}-receipts-unprocessed"
   processed_bucket = var.processed_bucket_name != "" ? var.processed_bucket_name : "${var.project_id}-receipts-processed"
+  submitted_bucket = var.submitted_bucket_name != "" ? var.submitted_bucket_name : "${var.project_id}-receipts-submitted"
   failed_bucket    = var.failed_bucket_name != "" ? var.failed_bucket_name : "${var.project_id}-receipts-failed"
   bq_location      = var.bigquery_location != "" ? var.bigquery_location : var.region
 
   services = [
     "run.googleapis.com",
     "cloudfunctions.googleapis.com",
+    "cloudscheduler.googleapis.com",
     "eventarc.googleapis.com",
     "pubsub.googleapis.com",
     "storage.googleapis.com",
