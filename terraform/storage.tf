@@ -27,6 +27,15 @@ resource "google_storage_bucket" "processed_receipts" {
     enabled = true
   }
 
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 120 # Delete after 4 months (120 days) since EGYM policy permits submissions up to 3 months
+    }
+  }
+
   labels = {
     purpose = "processed-receipts-transitional"
   }

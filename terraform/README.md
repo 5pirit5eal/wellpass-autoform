@@ -76,7 +76,7 @@ This directory provides the Terraform infrastructure as code (IaC) required for 
 | Bucket Identifier | Purpose | Storage Class | Versioning | Lifecycle Policy |
 | --- | --- | --- | --- | --- |
 | `unprocessed_receipts` | Ingestion for incoming tickets/receipts | `STANDARD` | Enabled | — |
-| `processed_receipts` | Transitional staging for verified receipts | `STANDARD` | Enabled | Cleaned up upon submission |
+| `processed_receipts` | Transitional staging for verified receipts | `STANDARD` | Enabled | Cleaned up on submission or deleted after 4 months (120 days) |
 | `submitted_receipts` | Long-term archival of submitted receipts | `ARCHIVE` | Enabled | Delete after 10 years (3,650 days) |
 | `failed_receipts` | Conflicts, unmatchable receipts, and audit screenshots | `COLDLINE` | Enabled | — |
 

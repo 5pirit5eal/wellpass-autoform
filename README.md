@@ -61,7 +61,7 @@ EGYM Wellpass allows members to submit out-of-pocket receipts from participating
 | Bucket | Storage Class | Lifecycle / Retention | Purpose |
 | --- | --- | --- | --- |
 | **`unprocessed`** | `STANDARD` | Deleted upon processing | Landing bucket for raw receipt uploads. |
-| **`processed`** | `STANDARD` | Deleted upon submission | Transitional staging with attached GCS object metadata. |
+| **`processed`** | `STANDARD` | Deleted upon submission / Expired after 4 months (120 days) | Transitional staging with attached GCS object metadata. |
 | **`submitted`** | `ARCHIVE` | 10 years (3,650 days) | Long-term compliance archive organized by submission month (`YYYY-MM/`). |
 | **`failed`** | `COLDLINE` | Persistent | Storage for rejected receipts, conflicts, and Playwright audit screenshots. |
 
@@ -93,6 +93,7 @@ The repository includes pre-configured GitHub Actions workflows and automated de
 Both Go services provide a standalone `Taskfile.sh` for development and testing:
 
 ### 1. Receipts Extraction Function
+
 ```bash
 cd receipts-function
 ./Taskfile.sh test        # Run unit tests
@@ -101,6 +102,7 @@ cd receipts-function
 ```
 
 ### 2. Form Submission Job
+
 ```bash
 cd form-submission-job
 ./Taskfile.sh test        # Run unit tests
@@ -109,6 +111,7 @@ cd form-submission-job
 ```
 
 ### 3. Cloud Infrastructure
+
 ```bash
 cd terraform
 terraform init
