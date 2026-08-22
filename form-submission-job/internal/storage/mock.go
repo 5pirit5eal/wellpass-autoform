@@ -28,14 +28,25 @@ func NewMockStorageService(items []*ReceiptItem) *MockStorageService {
 	}
 }
 
-func (m *MockStorageService) ListProcessedReceipts(ctx context.Context, bucket string, monthFilter string) ([]*ReceiptItem, error) {
+func (m *MockStorageService) ListProcessedReceipts(ctx context.Context, bucket string, allowedMonths []string) ([]*ReceiptItem, error) {
 	var result []*ReceiptItem
+	allowedMap := make(map[string]bool)
+	for _, mon := range allowedMonths {
+		allowedMap[mon] = true
+	}
+
 	for _, item := range m.Items {
 		if item.Status == "submitted" {
 			continue
 		}
-		if monthFilter != "" && item.Date != "" && item.Date[:7] != monthFilter {
-			continue
+		if len(allowedMap) > 0 && item.Date != "" {
+			prefix := item.Date
+			if len(item.Date) >= 7 {
+				prefix = item.Date[:7]
+			}
+			if !allowedMap[prefix] {
+				continue
+			}
 		}
 		result = append(result, item)
 	}

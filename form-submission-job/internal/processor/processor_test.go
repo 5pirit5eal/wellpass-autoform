@@ -25,7 +25,7 @@ func TestJobProcessorWorkflow(t *testing.T) {
 		{
 			Bucket:      "test-bucket",
 			ObjectName:  "receipt1.pdf",
-			Date:        "2026-08-05",
+			Date:        "2026-06-15", // 2 months ago (allowed)
 			TicketPrice: 5.44,
 			Location:    "Schwimm in Bilk",
 			Status:      "processed",
@@ -34,9 +34,27 @@ func TestJobProcessorWorkflow(t *testing.T) {
 		{
 			Bucket:      "test-bucket",
 			ObjectName:  "receipt2.pdf",
-			Date:        "2026-08-12",
+			Date:        "2026-07-20", // 1 month ago (allowed)
 			TicketPrice: 4.50,
 			Location:    "Münster Therme",
+			Status:      "processed",
+			CreatedAt:   time.Now(),
+		},
+		{
+			Bucket:      "test-bucket",
+			ObjectName:  "receipt3.pdf",
+			Date:        "2026-08-01", // Current submission month (allowed)
+			TicketPrice: 6.00,
+			Location:    "Freizeitbad Düsselstrand",
+			Status:      "processed",
+			CreatedAt:   time.Now(),
+		},
+		{
+			Bucket:      "test-bucket",
+			ObjectName:  "old_receipt.pdf",
+			Date:        "2026-05-01", // 3+ months ago (out of allowed window)
+			TicketPrice: 5.00,
+			Location:    "Rheinbad Düsseldorf",
 			Status:      "processed",
 			CreatedAt:   time.Now(),
 		},
@@ -72,22 +90,30 @@ func TestJobProcessorWorkflow(t *testing.T) {
 		t.Fatalf("unexpected run error: %v", err)
 	}
 
-	if report.TotalDiscovered != 2 {
-		t.Errorf("got %d discovered, want 2", report.TotalDiscovered)
+	if report.TotalDiscovered != 3 {
+		t.Errorf("got %d discovered, want 3", report.TotalDiscovered)
 	}
-	if report.TotalSubmitted != 2 {
-		t.Errorf("got %d submitted, want 2", report.TotalSubmitted)
+	if report.TotalSubmitted != 3 {
+		t.Errorf("got %d submitted, want 3", report.TotalSubmitted)
 	}
 	if report.BatchesCount != 1 {
 		t.Errorf("got %d batches, want 1", report.BatchesCount)
 	}
-	if len(mockStore.SubmittedList) != 2 {
-		t.Errorf("expected 2 items moved to submitted bucket, got %d", len(mockStore.SubmittedList))
-	} else if mockStore.SubmittedList[0] != "2026-08/receipt1.pdf" {
-		t.Errorf("expected destination object 2026-08/receipt1.pdf, got %s", mockStore.SubmittedList[0])
+	if len(mockStore.SubmittedList) != 3 {
+		t.Errorf("expected 3 items moved to submitted bucket, got %d", len(mockStore.SubmittedList))
+	} else {
+		if mockStore.SubmittedList[0] != "2026-08/receipt1.pdf" {
+			t.Errorf("expected destination object 2026-08/receipt1.pdf, got %s", mockStore.SubmittedList[0])
+		}
+		if mockStore.SubmittedList[1] != "2026-08/receipt2.pdf" {
+			t.Errorf("expected destination object 2026-08/receipt2.pdf, got %s", mockStore.SubmittedList[1])
+		}
+		if mockStore.SubmittedList[2] != "2026-08/receipt3.pdf" {
+			t.Errorf("expected destination object 2026-08/receipt3.pdf, got %s", mockStore.SubmittedList[2])
+		}
 	}
-	if len(mockStore.DeletedList) != 2 {
-		t.Errorf("expected 2 items deleted from processed bucket, got %d", len(mockStore.DeletedList))
+	if len(mockStore.DeletedList) != 3 {
+		t.Errorf("expected 3 items deleted from processed bucket, got %d", len(mockStore.DeletedList))
 	}
 	if len(mockStore.UploadedFiles) != 1 {
 		t.Errorf("expected 1 screenshot uploaded to failed bucket, got %d", len(mockStore.UploadedFiles))

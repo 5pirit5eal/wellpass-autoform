@@ -35,12 +35,17 @@ func (s *GCSStorageService) Close() error {
 	return nil
 }
 
-// ListProcessedReceipts returns all receipts in the given bucket matching monthFilter (e.g. "2026-08").
-// If monthFilter is empty, all un-submitted receipts are returned.
-func (s *GCSStorageService) ListProcessedReceipts(ctx context.Context, bucket string, monthFilter string) ([]*ReceiptItem, error) {
+// ListProcessedReceipts returns all receipts in the given bucket matching allowedMonths (e.g. ["2026-06", "2026-07", "2026-08"]).
+// If allowedMonths is empty, all un-submitted receipts are returned.
+func (s *GCSStorageService) ListProcessedReceipts(ctx context.Context, bucket string, allowedMonths []string) ([]*ReceiptItem, error) {
 	var items []*ReceiptItem
 	bkt := s.client.Bucket(bucket)
 	it := bkt.Objects(ctx, nil)
+
+	allowedMap := make(map[string]bool)
+	for _, m := range allowedMonths {
+		allowedMap[m] = true
+	}
 
 	for {
 		attrs, err := it.Next()
@@ -63,9 +68,13 @@ func (s *GCSStorageService) ListProcessedReceipts(ctx context.Context, bucket st
 			continue
 		}
 
-		// Filter by month if provided (e.g. "2026-08" matches item.Date starting with "2026-08")
-		if monthFilter != "" {
-			if item.Date != "" && !strings.HasPrefix(item.Date, monthFilter) {
+		// Filter by allowed months if provided
+		if len(allowedMap) > 0 && item.Date != "" {
+			monthPrefix := item.Date
+			if len(item.Date) >= 7 {
+				monthPrefix = item.Date[:7]
+			}
+			if !allowedMap[monthPrefix] {
 				continue
 			}
 		}

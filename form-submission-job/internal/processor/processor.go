@@ -56,29 +56,30 @@ func NewJobProcessor(
 
 // Run executes the full monthly submission workflow.
 func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
-	month := p.cfg.TargetSubmissionMonth()
-	log.Printf("Starting form submission job for target month: %s (Bucket: %s, DryRun: %v)",
-		month, p.cfg.SourceBucket, p.cfg.DryRun)
+	submissionMonth := p.cfg.TargetSubmissionMonth()
+	allowedMonths := p.cfg.AllowedReceiptMonths()
+	log.Printf("Starting form submission job for submission month: %s (eligible receipt window: %v, Bucket: %s, DryRun: %v)",
+		submissionMonth, allowedMonths, p.cfg.SourceBucket, p.cfg.DryRun)
 
-	// Step 1: List processed receipts from GCS
-	receipts, err := p.storage.ListProcessedReceipts(ctx, p.cfg.SourceBucket, month)
+	// Step 1: List processed receipts from GCS matching the 3-month eligibility window
+	receipts, err := p.storage.ListProcessedReceipts(ctx, p.cfg.SourceBucket, allowedMonths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list processed receipts: %w", err)
 	}
 
 	report := &RunReport{
-		TargetMonth:     month,
+		TargetMonth:     submissionMonth,
 		TotalDiscovered: len(receipts),
 		DryRun:          p.cfg.DryRun,
 		BatchResults:    []*submitter.SubmissionResult{},
 	}
 
 	if len(receipts) == 0 {
-		log.Printf("No un-submitted receipts found for month %s.", month)
+		log.Printf("No un-submitted receipts found for submission month %s (window: %v).", submissionMonth, allowedMonths)
 		return report, nil
 	}
 
-	log.Printf("Found %d receipt(s) to process for month %s.", len(receipts), month)
+	log.Printf("Found %d eligible receipt(s) to process for submission month %s.", len(receipts), submissionMonth)
 
 	// Ensure temporary directory exists
 	if err := os.MkdirAll(p.tempDir, 0755); err != nil {
@@ -103,7 +104,7 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 			log.Printf("Warning: Failed to match pool location %q for receipt %s: %v", r.Location, r.ObjectName, matchErr)
 			report.UnmatchedReceipts = append(report.UnmatchedReceipts, fmt.Sprintf("%s: %s", r.ObjectName, r.Location))
 			if !p.cfg.DryRun {
-				if moveErr := p.storage.MoveToFailed(ctx, p.cfg.SourceBucket, p.cfg.FailedBucket, r.ObjectName, month, matchErr.Error()); moveErr != nil {
+				if moveErr := p.storage.MoveToFailed(ctx, p.cfg.SourceBucket, p.cfg.FailedBucket, r.ObjectName, submissionMonth, matchErr.Error()); moveErr != nil {
 					log.Printf("Warning: failed to move unmatched receipt %s to failed bucket: %v", r.ObjectName, moveErr)
 				}
 			}
@@ -139,7 +140,7 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 
 	// Step 4: Submit each batch
 	for idx, batchTickets := range batches {
-		batchID := fmt.Sprintf("sub_%s_batch%d_%s", month, idx+1, time.Now().Format("150405"))
+		batchID := fmt.Sprintf("sub_%s_batch%d_%s", submissionMonth, idx+1, time.Now().Format("150405"))
 		subBatch := submitter.SubmissionBatch{
 			BatchID:        batchID,
 			TypeformURL:    p.cfg.TypeformURL,
@@ -157,7 +158,7 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 		subResult, err := p.submitter.Submit(ctx, subBatch)
 		if subResult != nil {
 			report.BatchResults = append(report.BatchResults, subResult)
-			p.uploadBatchScreenshots(ctx, month, batchID, subResult.Screenshots)
+			p.uploadBatchScreenshots(ctx, submissionMonth, batchID, subResult.Screenshots)
 		}
 		if err != nil {
 			return report, fmt.Errorf("submission failed for batch %s: %w", batchID, err)
@@ -165,11 +166,11 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 
 		if subResult.Success {
 			report.TotalSubmitted += len(batchTickets)
-			// Move receipts to submitted archive bucket inside month folder and delete from processed (only if not dry-run)
+			// Move receipts to submitted archive bucket inside configured submission month folder (independent of individual receipt date)
 			if !p.cfg.DryRun {
 				for _, t := range batchTickets {
-					if moveErr := p.storage.MoveToSubmitted(ctx, p.cfg.SourceBucket, p.cfg.SubmittedBucket, t.ObjectName, month, batchID); moveErr != nil {
-						log.Printf("Warning: failed to move %s to submitted archive bucket %s: %v", t.ObjectName, p.cfg.SubmittedBucket, moveErr)
+					if moveErr := p.storage.MoveToSubmitted(ctx, p.cfg.SourceBucket, p.cfg.SubmittedBucket, t.ObjectName, submissionMonth, batchID); moveErr != nil {
+						log.Printf("Warning: failed to move %s to submitted archive bucket %s (%s): %v", t.ObjectName, p.cfg.SubmittedBucket, submissionMonth, moveErr)
 					}
 				}
 			}

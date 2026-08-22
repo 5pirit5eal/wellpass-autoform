@@ -40,6 +40,11 @@ func TestConfigLoad(t *testing.T) {
 	if cfg.TargetSubmissionMonth() != "2026-05" {
 		t.Errorf("got TargetSubmissionMonth %q, want %q", cfg.TargetSubmissionMonth(), "2026-05")
 	}
+
+	allowed := cfg.AllowedReceiptMonths()
+	if len(allowed) != 3 || allowed[0] != "2026-03" || allowed[1] != "2026-04" || allowed[2] != "2026-05" {
+		t.Errorf("expected allowed months [2026-03 2026-04 2026-05], got %v", allowed)
+	}
 }
 
 func TestConfigValidation(t *testing.T) {

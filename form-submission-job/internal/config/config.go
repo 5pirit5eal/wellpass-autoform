@@ -32,7 +32,7 @@ func (c *Config) FullName() string {
 	return strings.TrimSpace(fmt.Sprintf("%s %s", c.FirstName, c.LastName))
 }
 
-// TargetSubmissionMonth returns the YYYY-MM string to filter receipts for.
+// TargetSubmissionMonth returns the YYYY-MM string for the current submission run.
 // Defaults to the previous month in UTC if TargetMonth is not explicitly configured.
 func (c *Config) TargetSubmissionMonth() string {
 	if c.TargetMonth != "" {
@@ -41,6 +41,21 @@ func (c *Config) TargetSubmissionMonth() string {
 	now := time.Now().UTC()
 	prevMonth := now.AddDate(0, -1, 0)
 	return prevMonth.Format("2006-01")
+}
+
+// AllowedReceiptMonths returns the 3-month window (e.g. ["2026-06", "2026-07", "2026-08"])
+// of receipts eligible for submission, as allowed by EGYM Wellpass policy.
+func (c *Config) AllowedReceiptMonths() []string {
+	target := c.TargetSubmissionMonth()
+	t, err := time.Parse("2006-01", target)
+	if err != nil {
+		return []string{target}
+	}
+	return []string{
+		t.AddDate(0, -2, 0).Format("2006-01"),
+		t.AddDate(0, -1, 0).Format("2006-01"),
+		t.Format("2006-01"),
+	}
 }
 
 // Load reads configuration from environment variables and an optional .env file.

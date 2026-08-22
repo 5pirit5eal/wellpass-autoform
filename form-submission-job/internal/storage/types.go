@@ -71,7 +71,7 @@ func ParseMetadata(bucket, objectName string, meta map[string]string, created ti
 
 // StorageService defines the contract for interacting with receipt storage in GCS.
 type StorageService interface {
-	ListProcessedReceipts(ctx context.Context, bucket string, monthFilter string) ([]*ReceiptItem, error)
+	ListProcessedReceipts(ctx context.Context, bucket string, allowedMonths []string) ([]*ReceiptItem, error)
 	DownloadReceipt(ctx context.Context, bucket, objectName, destPath string) error
 	MoveToSubmitted(ctx context.Context, srcBucket, dstBucket, objectName, monthFolder, batchID string) error
 	MoveToFailed(ctx context.Context, srcBucket, dstBucket, objectName, monthFolder, reason string) error
