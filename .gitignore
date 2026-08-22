@@ -147,8 +147,10 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments and Secrets
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -156,6 +158,55 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+client_secret*.json
+
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+profile.out
+c.out
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+
+# Operating System & Editors
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Unit test / coverage reports
 
 # Spyder project settings
 .spyderproject
