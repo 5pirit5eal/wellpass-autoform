@@ -60,7 +60,6 @@ jobs:
           FAILED_BUCKET: ${{ vars.RECEIPTS_FAILED_BUCKET }}
           ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
         run: |
-          chmod +x Taskfile.sh
           ./Taskfile.sh deploy
 
   deploy-form-submission-job:
@@ -104,5 +103,4 @@ jobs:
           BIC: ${{ vars.WELLPASS_BIC }}
           DRY_RUN: ${{ vars.SUBMISSION_DRY_RUN }}
         run: |
-          chmod +x Taskfile.sh
           ./Taskfile.sh deploy

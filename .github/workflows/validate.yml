@@ -43,7 +43,6 @@ jobs:
       - name: Run Taskfile Validate, Test & Build
         working-directory: receipts-function
         run: |
-          chmod +x Taskfile.sh
           ./Taskfile.sh validate
           ./Taskfile.sh test
           ./Taskfile.sh build
@@ -73,7 +72,6 @@ jobs:
       - name: Run Taskfile Validate, Test & Build
         working-directory: form-submission-job
         run: |
-          chmod +x Taskfile.sh
           ./Taskfile.sh validate
           ./Taskfile.sh test
           ./Taskfile.sh build
