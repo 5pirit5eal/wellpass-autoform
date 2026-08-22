@@ -1,7 +1,7 @@
 # GCP Project Configuration
 project_id  = "your-gcp-project-id"
 region      = "europe-west3"
-environment = "prod"
+gemini_location = "eu"
 
 # Optional explicit bucket names (defaults to auto-generated project-scoped names)
 # source_bucket_name    = "my-receipts-unprocessed"
