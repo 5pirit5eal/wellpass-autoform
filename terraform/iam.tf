@@ -116,6 +116,18 @@ resource "google_service_account_iam_member" "github_actions_act_as_function_sa"
   member             = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+# Project data source to determine default compute service account for Cloud Build / Gen2 deployment
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
+# Allow GitHub Actions SA to act as default compute engine SA (used by Cloud Functions Gen2 / Cloud Build)
+resource "google_project_iam_member" "github_actions_act_as_compute_sa" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # Grant CI/CD deployment permissions to github-actions-sa
 resource "google_project_iam_member" "github_actions_cf_developer" {
   project = var.project_id

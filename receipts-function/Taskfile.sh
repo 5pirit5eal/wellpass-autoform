@@ -115,6 +115,7 @@ deploy() {
   local failed_bucket="${FAILED_BUCKET:-${RECEIPTS_FAILED_BUCKET:?FAILED_BUCKET is required}}"
   local gemini_model="${GEMINI_MODEL:-gemini-3.5-flash-lite}"
   local runtime="${RUNTIME:-go126}"
+  local function_sa="${FUNCTION_SERVICE_ACCOUNT:-${RECEIPTS_FUNCTION_SERVICE_ACCOUNT:-receipts-function-sa@${project}.iam.gserviceaccount.com}}"
   local ar_repo="${ARTIFACT_REGISTRY_REPOSITORY:-golang}"
   local docker_repo_flag=()
 
@@ -132,6 +133,7 @@ deploy() {
     --source . \
     --entry-point ProcessReceipt \
     --trigger-bucket "$source_bucket" \
+    --service-account "$function_sa" \
     "${docker_repo_flag[@]}" \
     --set-env-vars "SOURCE_BUCKET=${source_bucket},TARGET_BUCKET=${target_bucket},FAILED_BUCKET=${failed_bucket},GEMINI_MODEL=${gemini_model},REGION=${region},PROJECT_ID=${project},GEMINI_LOCATION=${gemini_location}" \
     --memory 512MB \

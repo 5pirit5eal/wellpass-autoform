@@ -14,6 +14,7 @@ locals {
     RECEIPTS_TARGET_BUCKET          = google_storage_bucket.processed_receipts.name
     RECEIPTS_SUBMITTED_BUCKET       = google_storage_bucket.submitted_receipts.name
     RECEIPTS_FAILED_BUCKET          = google_storage_bucket.failed_receipts.name
+    RECEIPTS_FUNCTION_SERVICE_ACCOUNT = google_service_account.receipts_function.email
     ARTIFACT_REGISTRY_REPOSITORY    = google_artifact_registry_repository.receipts.name
     BIGQUERY_DATASET                = google_bigquery_dataset.receipts.dataset_id
     BIGQUERY_TABLE                  = google_bigquery_table.processing_results.table_id
