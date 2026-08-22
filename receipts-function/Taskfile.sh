@@ -107,12 +107,12 @@ setup-gcloud() {
 
 deploy() {
   local func_name="${FUNCTION_NAME:-process-receipt}"
-  local project="${PROJECT_ID:?PROJECT_ID is required}"
-  local region="${REGION:-europe-west3}"
+  local project="${PROJECT_ID:-${GCP_PROJECT_ID:?PROJECT_ID is required}}"
+  local region="${REGION:-${GCP_REGION:-europe-west3}}"
   local gemini_location="${GEMINI_LOCATION:-eu}"
-  local source_bucket="${SOURCE_BUCKET:?SOURCE_BUCKET is required for storage trigger}"
-  local target_bucket="${TARGET_BUCKET:?TARGET_BUCKET is required}"
-  local failed_bucket="${FAILED_BUCKET:?FAILED_BUCKET is required}"
+  local source_bucket="${SOURCE_BUCKET:-${RECEIPTS_SOURCE_BUCKET:?SOURCE_BUCKET is required for storage trigger}}"
+  local target_bucket="${TARGET_BUCKET:-${RECEIPTS_TARGET_BUCKET:?TARGET_BUCKET is required}}"
+  local failed_bucket="${FAILED_BUCKET:-${RECEIPTS_FAILED_BUCKET:?FAILED_BUCKET is required}}"
   local gemini_model="${GEMINI_MODEL:-gemini-3.5-flash-lite}"
   local runtime="${RUNTIME:-go126}"
   local ar_repo="${ARTIFACT_REGISTRY_REPOSITORY:-golang}"

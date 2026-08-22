@@ -126,6 +126,7 @@ This directory provides the Terraform infrastructure as code (IaC) required for 
 When `enable_github_resources = true`, the following repository variables and secrets are configured:
 
 #### Variables (`vars.*`)
+
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
 - `GEMINI_LOCATION`
@@ -150,6 +151,7 @@ When `enable_github_resources = true`, the following repository variables and se
 - `SUBMISSION_DRY_RUN`
 
 #### Secrets (`secrets.*`)
+
 - `WELLPASS_IBAN` (Sensitive banking information stored encrypted in GitHub Secrets)
 
 ---
@@ -165,27 +167,32 @@ When `enable_github_resources = true`, the following repository variables and se
 ### Quick Start
 
 1. **Configure Variables**:
+
    ```bash
    cp terraform.tfvars.example terraform.tfvars
    # Edit terraform.tfvars with your GCP project_id and member details
    ```
 
 2. **Initialize Terraform**:
+
    ```bash
    terraform init
    ```
 
 3. **Preview Infrastructure Plan**:
+
    ```bash
    terraform plan
    ```
 
 4. **Apply Infrastructure**:
+
    ```bash
    terraform apply
    ```
 
 5. **Verify Outputs**:
+
    ```bash
    terraform output
    ```
@@ -197,12 +204,14 @@ When `enable_github_resources = true`, the following repository variables and se
 Terraform provisions all base cloud infrastructure. The application services are deployed using `gcloud` via their respective Taskfiles:
 
 - **Cloud Run Function (`receipts-function`)**:
+
   ```bash
   cd ../receipts-function
   ./Taskfile.sh deploy
   ```
 
 - **Cloud Run Job & Scheduler (`form-submission-job`)**:
+
   ```bash
   cd ../form-submission-job
   ./Taskfile.sh deploy

@@ -1,0 +1,79 @@
+name: Validate Services
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "receipts-function/**"
+      - "form-submission-job/**"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "receipts-function/**"
+      - "form-submission-job/**"
+      - ".github/workflows/validate.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-receipts-function:
+    name: Validate receipts-function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: receipts-function/go.mod
+          check-latest: true
+          cache-dependency-path: receipts-function/go.sum
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: receipts-function
+          args: --timeout=5m
+        continue-on-error: true
+
+      - name: Run Taskfile Validate, Test & Build
+        working-directory: receipts-function
+        run: |
+          chmod +x Taskfile.sh
+          ./Taskfile.sh validate
+          ./Taskfile.sh test
+          ./Taskfile.sh build
+
+  validate-form-submission-job:
+    name: Validate form-submission-job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: form-submission-job/go.mod
+          check-latest: true
+          cache-dependency-path: form-submission-job/go.sum
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: form-submission-job
+          args: --timeout=5m
+        continue-on-error: true
+
+      - name: Run Taskfile Validate, Test & Build
+        working-directory: form-submission-job
+        run: |
+          chmod +x Taskfile.sh
+          ./Taskfile.sh validate
+          ./Taskfile.sh test
+          ./Taskfile.sh build

@@ -1,0 +1,108 @@
+name: Deploy Services
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "receipts-function/**"
+      - "form-submission-job/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - receipts-function
+          - form-submission-job
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-receipts-function:
+    name: Deploy receipts-function (Cloud Run Function)
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'receipts-function'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Cloud Run Function via Taskfile
+        working-directory: receipts-function
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          GEMINI_LOCATION: ${{ vars.GEMINI_LOCATION }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          SOURCE_BUCKET: ${{ vars.RECEIPTS_SOURCE_BUCKET }}
+          TARGET_BUCKET: ${{ vars.RECEIPTS_TARGET_BUCKET }}
+          FAILED_BUCKET: ${{ vars.RECEIPTS_FAILED_BUCKET }}
+          ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+        run: |
+          chmod +x Taskfile.sh
+          ./Taskfile.sh deploy
+
+  deploy-form-submission-job:
+    name: Deploy form-submission-job (Cloud Run Job & Scheduler)
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'form-submission-job'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Cloud Run Job & Scheduler via Taskfile
+        working-directory: form-submission-job
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          SOURCE_BUCKET: ${{ vars.RECEIPTS_TARGET_BUCKET }}
+          SUBMITTED_BUCKET: ${{ vars.RECEIPTS_SUBMITTED_BUCKET }}
+          FAILED_BUCKET: ${{ vars.RECEIPTS_FAILED_BUCKET }}
+          ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY }}
+          SUBMISSION_JOB_SERVICE_ACCOUNT: ${{ vars.SUBMISSION_JOB_SERVICE_ACCOUNT }}
+          TYPEFORM_URL: ${{ vars.WELLPASS_TYPEFORM_URL }}
+          EMAIL: ${{ vars.WELLPASS_EMAIL }}
+          FIRST_NAME: ${{ vars.WELLPASS_FIRST_NAME }}
+          LAST_NAME: ${{ vars.WELLPASS_LAST_NAME }}
+          IBAN: ${{ secrets.WELLPASS_IBAN }}
+          BIC: ${{ vars.WELLPASS_BIC }}
+          DRY_RUN: ${{ vars.SUBMISSION_DRY_RUN }}
+        run: |
+          chmod +x Taskfile.sh
+          ./Taskfile.sh deploy
