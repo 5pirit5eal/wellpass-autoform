@@ -43,6 +43,24 @@ func TestPlaywrightLiveDryRun(t *testing.T) {
 				Price:      "5,44",
 				FilePath:   samplePDF,
 			},
+			{
+				ObjectName: "8e3e1eae307d427480b57565c1b89cdb.pdf",
+				PoolLabel:  "Münster Therme Düsseldorf",
+				Day:        "16",
+				Month:      "08",
+				Year:       "2026",
+				Price:      "5,40",
+				FilePath:   samplePDF,
+			},
+			{
+				ObjectName: "8e3e1eae307d427480b57565c1b89cdb.pdf",
+				PoolLabel:  "Freizeitbad Düsselstrand Düsseldorf",
+				Day:        "17",
+				Month:      "08",
+				Year:       "2026",
+				Price:      "7,50",
+				FilePath:   samplePDF,
+			},
 		},
 	}
 

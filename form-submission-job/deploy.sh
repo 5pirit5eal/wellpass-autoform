@@ -75,7 +75,7 @@ if gcloud run jobs describe "${JOB_NAME}" --project="${PROJECT_ID}" --region="${
     --memory="2Gi" \
     --cpu="1000m" \
     --max-retries=1 \
-    --task-timeout="600s" \
+    --task-timeout="3600s" \
     --set-env-vars="${ENV_VARS}"
 else
   echo "Creating new Cloud Run Job ${JOB_NAME}..."
@@ -87,7 +87,7 @@ else
     --memory="2Gi" \
     --cpu="1000m" \
     --max-retries=1 \
-    --task-timeout="600s" \
+    --task-timeout="3600s" \
     --set-env-vars="${ENV_VARS}"
 fi
 
