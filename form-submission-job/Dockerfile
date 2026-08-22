@@ -6,17 +6,18 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/bin/job ./cmd/job
+RUN CGO_ENABLED=0 go build -o /app/bin/job ./cmd/job
 
 # Stage 2: Runtime image with Playwright driver & Chromium browser
-FROM golang:1.26-bookworm AS runner
+FROM mcr.microsoft.com/playwright:v1.50.0-jammy
 
 WORKDIR /app
 
-# Install Playwright driver, browser and all OS dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-RUN go run github.com/playwright-community/playwright-go/cmd/playwright install --with-deps chromium
+# Assemble Playwright-Go driver v1.50.1 from npm and preinstall Chromium with all OS dependencies
+RUN mkdir -p /root/.cache/ms-playwright-go/1.50.1 && \
+    curl -fsSL https://registry.npmjs.org/playwright-core/-/playwright-core-1.50.1.tgz | tar -xz -C /root/.cache/ms-playwright-go/1.50.1 && \
+    cp "$(which node)" /root/.cache/ms-playwright-go/1.50.1/node && \
+    /root/.cache/ms-playwright-go/1.50.1/node /root/.cache/ms-playwright-go/1.50.1/package/cli.js install --with-deps chromium
 
 # Copy compiled binary from builder
 COPY --from=builder /app/bin/job /app/job
