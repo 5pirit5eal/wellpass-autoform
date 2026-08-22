@@ -9,7 +9,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /app/bin/job ./cmd/job
 
 # Stage 2: Runtime image with Playwright driver & Chromium browser
-FROM mcr.microsoft.com/playwright:v1.50.0-jammy
+FROM mcr.microsoft.com/playwright:v1.62.1-jammy
 
 WORKDIR /app
 
