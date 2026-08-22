@@ -245,20 +245,35 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		}
 
 		// Wait for upload confirmation and click visible Ok button
-		time.Sleep(1500 * time.Millisecond)
-		okUploadBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
-		if err := okUploadBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err == nil {
-			if err := okUploadBtn.Click(); err != nil {
-				_ = page.Keyboard().Press("Enter")
-			}
-		} else {
-			_ = page.Keyboard().Press("Enter")
+		time.Sleep(2000 * time.Millisecond)
+		okUploadBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible, button:visible").Filter(playwright.LocatorFilterOptions{
+			HasText: "Ok",
+		}).Last()
+
+		if err := okUploadBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(20000)}); err == nil {
+			_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 		}
+		time.Sleep(500 * time.Millisecond)
+		_ = page.Keyboard().Press("Enter")
 
 		// 5. More tickets prompt? (Only relevant if not the 10th ticket)
 		if ticketNum < 10 {
-			time.Sleep(1500 * time.Millisecond)
-			hasMore := (i < len(batch.Tickets)-1)
+			hasMore := (i < len(batch.Tickets) - 1)
+
+			// Wait for the next question (Ja/Nein choices or next input) to be active
+			for attempt := 0; attempt < 6; attempt++ {
+				choicesCount, _ := page.Locator("[role='radio']:visible, [data-qa*='choice']:visible, button:visible:has-text('Ja'), button:visible:has-text('Nein')").Count()
+				if choicesCount > 0 {
+					break
+				}
+				// If still on upload screen, re-click OK / press Enter
+				if count, _ := okUploadBtn.Count(); count > 0 {
+					_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+				}
+				_ = page.Keyboard().Press("Enter")
+				time.Sleep(1000 * time.Millisecond)
+			}
+
 			if hasMore {
 				jaChoice := page.Locator("[role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible, [data-qa*='choice-1']:visible").First()
 				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err == nil {
@@ -271,9 +286,10 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 					_ = page.Keyboard().Press("j")
 				}
 				time.Sleep(500 * time.Millisecond)
+				_ = page.Keyboard().Press("Enter")
 				okBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
 				if count, _ := okBtn.Count(); count > 0 {
-					_ = okBtn.Click()
+					_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				}
 			} else {
 				neinChoice := page.Locator("[role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible, [data-qa*='choice-2']:visible").First()
@@ -285,9 +301,10 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 					_ = page.Keyboard().Press("n")
 				}
 				time.Sleep(500 * time.Millisecond)
+				_ = page.Keyboard().Press("Enter")
 				okBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
 				if count, _ := okBtn.Count(); count > 0 {
-					_ = okBtn.Click()
+					_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				}
 			}
 		}
