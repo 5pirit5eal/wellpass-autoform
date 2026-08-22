@@ -22,6 +22,7 @@ Development Tasks:
   validate              Run linting and static analysis (go vet, golangci-lint)
   clean                 Remove build artifacts
   docker-build          Build local Docker image
+  docker-build-and-run  Build and execute the job inside local Docker container
 
 GCloud Authentication & Configuration:
   setup-gcloud          Set up and activate local gcloud configuration
@@ -96,6 +97,30 @@ docker-build() {
   local image_name="${IMAGE_NAME:-wellpass-form-submission-job}"
   echo "Building Docker image ${image_name}:latest..."
   docker build -t "${image_name}:latest" .
+}
+
+docker-build-and-run() {
+  local image_name="${IMAGE_NAME:-wellpass-form-submission-job}"
+  docker-build
+
+  echo "Running Docker container imitating Cloud Run Job environment..."
+  local env_args=()
+  if [ -f .env ]; then
+    env_args+=("--env-file" ".env")
+  fi
+
+  # Mount gcloud Application Default Credentials if available
+  local adc_mount=()
+  local adc_path="${HOME}/.config/gcloud/application_default_credentials.json"
+  if [ -f "$adc_path" ]; then
+    adc_mount+=("-v" "${adc_path}:/root/.config/gcloud/application_default_credentials.json:ro")
+    adc_mount+=("-e" "GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json")
+  fi
+
+  docker run --rm -it \
+    "${env_args[@]}" \
+    "${adc_mount[@]}" \
+    "${image_name}:latest" "$@"
 }
 
 authenticate() {
