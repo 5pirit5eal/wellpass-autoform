@@ -1,0 +1,21 @@
+# GCP Project Configuration
+project_id  = "your-gcp-project-id"
+region      = "europe-west3"
+environment = "prod"
+
+# Optional explicit bucket names (defaults to auto-generated project-scoped names)
+# source_bucket_name    = "my-receipts-unprocessed"
+# processed_bucket_name = "my-receipts-processed"
+# failed_bucket_name    = "my-receipts-failed"
+
+# BigQuery Configuration
+bigquery_dataset_id = "receipts_processing"
+bigquery_location   = "europe-west3"
+
+# Artifact Registry
+artifact_registry_repo_id = "golang"
+
+# GitHub Configuration for Workload Identity Federation & Actions Variables
+github_owner            = "5pirit5eal"
+github_repository       = "wellpass-autoform"
+enable_github_resources = true
