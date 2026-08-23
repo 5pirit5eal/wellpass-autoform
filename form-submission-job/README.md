@@ -21,7 +21,12 @@ Set the following variables in `.env` or container environment:
 
 | Variable | Description | Example |
 | --- | --- | --- |
-| `SOURCE_BUCKET` | GCS bucket containing processed receipts | `receipt-processing-egym-receipts-processed` |
+| `SOURCE_BUCKET` | GCS bucket containing processed receipts | `your-project-id-receipts-processed` |
+| `SUBMITTED_BUCKET` | GCS archive bucket for submitted receipts | `your-project-id-receipts-submitted` |
+| `FAILED_BUCKET` | GCS bucket for screenshots and unmatched items | `your-project-id-receipts-failed` |
+| `PROJECT_ID` | Google Cloud Project ID | `your-project-id` |
+| `BIGQUERY_DATASET` | BigQuery dataset ID | `receipts_processing` |
+| `BIGQUERY_TABLE` | BigQuery table ID | `processing_results` |
 | `TYPEFORM_URL` | EGYM Wellpass Typeform URL | `https://egym.typeform.com/to/z5XBrNXf` |
 | `EMAIL` | EGYM Wellpass member email | `member@example.com` |
 | `FIRST_NAME` | Member first name | `Max` |
@@ -32,6 +37,32 @@ Set the following variables in `.env` or container environment:
 | `HEADLESS` | Run browser in headless mode (`true`/`false`) | `true` |
 | `TARGET_MONTH` | Target month (`YYYY-MM`, default: previous month) | `2026-08` |
 | `SCREENSHOTS_DIR` | Directory for audit screenshots | `/tmp/form-submission-screenshots` |
+
+---
+
+## Project Structure
+
+```
+form-submission-job/
+├── .env.example              # Example environment configuration
+├── Dockerfile                # Multi-stage Playwright Go runtime container image
+├── Taskfile.sh               # Automation script for local dev, test, and gcloud deployment
+├── deploy.sh                 # Deployment script for Cloud Run Job & Cloud Scheduler
+├── go.mod                    # Go module (1.26.3)
+├── go.sum
+├── cmd/
+│   └── job/
+│       └── main.go           # CLI job entrypoint
+└── internal/
+    ├── bigquery/             # BigQuery MERGE submission updater & types
+    ├── config/               # Configuration loading and validation
+    ├── matcher/              # 423-pool fuzzy token matching engine
+    ├── processor/            # Batch orchestration, chunking, and GCS archiving
+    ├── storage/              # GCS client, download, move, and metadata helpers
+    └── submitter/            # Playwright browser automation against Typeform
+```
+
+---
 
 ## Local Development & Tasks
 
@@ -52,6 +83,7 @@ Use `./Taskfile.sh`:
 
 # Execute dry-run for specific month
 ./Taskfile.sh run-month 2026-08
+```
 
 ## Deployment via `gcloud` CLI
 
@@ -65,7 +97,7 @@ The Cloud Run Job and Cloud Scheduler trigger can be deployed and managed direct
 ./deploy.sh
 
 # 2. Trigger an immediate execution of the Cloud Run Job:
-./Taskfile.sh run-cloud-job
+./Taskfile.sh execute-job
 # or via gcloud:
 gcloud run jobs execute form-submission-job --region=europe-west3 --wait
 
@@ -85,9 +117,9 @@ gcloud run jobs create form-submission-job \
   --service-account=form-submission-job-sa@$PROJECT_ID.iam.gserviceaccount.com \
   --memory=2Gi \
   --cpu=1000m \
-  --task-timeout=600s \
+  --task-timeout=3600s \
   --max-retries=1 \
-  --set-env-vars="SOURCE_BUCKET=$PROJECT_ID-receipts-processed,SUBMITTED_BUCKET=$PROJECT_ID-receipts-submitted,FAILED_BUCKET=$PROJECT_ID-receipts-failed,TYPEFORM_URL=https://egym.typeform.com/to/z5XBrNXf,EMAIL=$EMAIL,FIRST_NAME=$FIRST_NAME,LAST_NAME=$LAST_NAME,IBAN=$IBAN,BIC=$BIC,DRY_RUN=true,HEADLESS=true"
+  --set-env-vars="SOURCE_BUCKET=$PROJECT_ID-receipts-processed,SUBMITTED_BUCKET=$PROJECT_ID-receipts-submitted,FAILED_BUCKET=$PROJECT_ID-receipts-failed,PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=receipts_processing,BIGQUERY_TABLE=processing_results,TYPEFORM_URL=https://egym.typeform.com/to/z5XBrNXf,EMAIL=$EMAIL,FIRST_NAME=$FIRST_NAME,LAST_NAME=$LAST_NAME,IBAN=$IBAN,BIC=$BIC,DRY_RUN=true,HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
 
 # Deploy Cloud Scheduler Trigger
 gcloud scheduler jobs create http monthly-form-submission-trigger \

@@ -30,8 +30,11 @@ The function extracts structured receipt metadata, verifies there are no duplica
 | `SOURCE_BUCKET` | **Yes** | — | GCS bucket where incoming receipts are uploaded to trigger the function |
 | `TARGET_BUCKET` | **Yes** | — | GCS bucket for successfully processed receipts with attached metadata |
 | `FAILED_BUCKET` | **Yes** | — | GCS bucket for conflicting or failed receipts |
-| `PROJECT_ID` / `GOOGLE_CLOUD_PROJECT` | **Yes** (Vertex AI) | — | Google Cloud Project ID |
+| `PROJECT_ID` / `GOOGLE_CLOUD_PROJECT` | **Yes** (Vertex AI / BQ) | — | Google Cloud Project ID |
 | `REGION` / `LOCATION` | No | `europe-west3` | Google Cloud region |
+| `GEMINI_LOCATION` | No | `eu` | Location for Gemini Vertex AI models |
+| `BIGQUERY_DATASET` | No | `receipts_processing` | BigQuery dataset ID for analytics |
+| `BIGQUERY_TABLE` | No | `processing_results` | BigQuery table ID for extraction and submission audit records |
 | `ARTIFACT_REGISTRY_REPOSITORY` | No | `golang` | Artifact Registry Docker repository name for function images |
 | `GEMINI_MODEL` | No | `gemini-3.5-flash-lite` | Gemini model name |
 | `GOOGLE_GENAI_USE_VERTEXAI` | No | `true` | Use Vertex AI backend with Application Default Credentials |
@@ -54,10 +57,11 @@ receipts-function/
 │   └── server/
 │       └── main.go           # Local CloudEvent development server
 └── internal/
+    ├── bigquery/             # BigQuery streaming recorder & schema types
     ├── config/               # Configuration management and validation
     ├── extractor/            # Gemini 3.5 Flash Lite receipt extraction & schema
     ├── handler/              # CloudEvent request handler & loop prevention
-    ├── processor/            # Processing workflow and conflict detection
+    ├── processor/            # Processing workflow, conflict detection, and BQ audit
     └── storage/              # Google Cloud Storage operations & metadata handling
 ```
 
@@ -152,8 +156,9 @@ gcloud functions deploy process-receipt \
   --source . \
   --entry-point ProcessReceipt \
   --trigger-bucket "$SOURCE_BUCKET" \
+  --service-account "receipts-function-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
   --docker-repository "projects/${PROJECT_ID}/locations/europe-west3/repositories/golang" \
-  --set-env-vars "SOURCE_BUCKET=${SOURCE_BUCKET},TARGET_BUCKET=${TARGET_BUCKET},FAILED_BUCKET=${FAILED_BUCKET},GEMINI_MODEL=gemini-3.5-flash-lite,REGION=europe-west3,PROJECT_ID=${PROJECT_ID}" \
+  --set-env-vars "SOURCE_BUCKET=${SOURCE_BUCKET},TARGET_BUCKET=${TARGET_BUCKET},FAILED_BUCKET=${FAILED_BUCKET},GEMINI_MODEL=gemini-3.5-flash-lite,REGION=europe-west3,PROJECT_ID=${PROJECT_ID},GEMINI_LOCATION=eu,BIGQUERY_DATASET=receipts_processing,BIGQUERY_TABLE=processing_results" \
   --memory 512MB \
   --timeout 120s
 ```
