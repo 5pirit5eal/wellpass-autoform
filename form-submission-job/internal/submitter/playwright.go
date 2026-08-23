@@ -200,46 +200,83 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		}
 
 		// 2. Date
-		time.Sleep(600 * time.Millisecond)
-		tagInput := page.Locator("input[placeholder='TT']:visible, input[placeholder='TT']").Last()
-		monatInput := page.Locator("input[placeholder='MM']:visible, input[placeholder='MM']").Last()
-		jahrInput := page.Locator("input[placeholder='JJJJ']:visible, input[placeholder='JJJJ']").Last()
+		time.Sleep(800 * time.Millisecond)
+		tagInput := page.GetByPlaceholder("TT").Last()
+		monatInput := page.GetByPlaceholder("MM").Last()
+		jahrInput := page.GetByPlaceholder("JJJJ").Last()
 
 		if err := tagInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_date_input", ticketNum), fmt.Errorf("ticket %d: date inputs not found: %w", ticketNum, err))
 		}
+		_ = tagInput.Click()
 		if err := tagInput.Fill(ticket.Day); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_day_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill day: %w", ticketNum, err))
 		}
+		_ = monatInput.Click()
 		if err := monatInput.Fill(ticket.Month); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_month_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill month: %w", ticketNum, err))
 		}
+		_ = jahrInput.Click()
 		if err := jahrInput.Fill(ticket.Year); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_year_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill year: %w", ticketNum, err))
 		}
-		if err := jahrInput.Press("Enter"); err != nil {
-			_ = page.Locator("button:has-text('Ok'):visible").Last().Click()
+		time.Sleep(300 * time.Millisecond)
+		okDateBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
+		if count, _ := okDateBtn.Count(); count > 0 {
+			_ = okDateBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 		}
+		time.Sleep(200 * time.Millisecond)
+		_ = page.Keyboard().Press("Enter")
 
 		// 3. Ticket Einzelpreis
-		time.Sleep(600 * time.Millisecond)
-		priceInput := page.Locator("input[placeholder*='Antwort']:visible, input[type='text']:visible").Last()
-		if err := priceInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_price_input", ticketNum), fmt.Errorf("ticket %d: price input not found: %w", ticketNum, err))
-		}
-		if err := priceInput.Fill(ticket.Price); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_price_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill price: %w", ticketNum, err))
-		}
-		if err := priceInput.Press("Enter"); err != nil {
-			_ = page.Locator("button:has-text('Ok'):visible").Last().Click()
+		priceInput := page.GetByPlaceholder("Gib hier deine Antwort ein").Or(page.Locator("input[placeholder*='Antwort']:visible")).Last()
+		if err := priceInput.WaitFor(playwright.LocatorWaitForOptions{
+			Timeout: playwright.Float(15000),
+			State:   playwright.WaitForSelectorStateVisible,
+		}); err != nil {
+			// Retry advancing from Date if still on Date question
+			if count, _ := okDateBtn.Count(); count > 0 {
+				_ = okDateBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+			}
+			_ = page.Keyboard().Press("Enter")
+			if waitErr := priceInput.WaitFor(playwright.LocatorWaitForOptions{
+				Timeout: playwright.Float(10000),
+				State:   playwright.WaitForSelectorStateVisible,
+			}); waitErr != nil {
+				return failWithScreenshot(fmt.Sprintf("ticket_%d_price_input", ticketNum), fmt.Errorf("ticket %d: price input not found: %w", ticketNum, waitErr))
+			}
 		}
 
-		// 4. File Upload
-		time.Sleep(1000 * time.Millisecond)
-		fileInput := page.Locator("input[type='file']").Last()
-		if err := fileInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_file_input", ticketNum), fmt.Errorf("ticket %d: file upload input not found: %w", ticketNum, err))
+		time.Sleep(400 * time.Millisecond)
+		if err := priceInput.Click(); err != nil {
+			_ = priceInput.Focus()
 		}
+		_ = priceInput.Fill("")
+		if err := priceInput.PressSequentially(ticket.Price, playwright.LocatorPressSequentiallyOptions{
+			Delay: playwright.Float(50),
+		}); err != nil {
+			if err := priceInput.Fill(ticket.Price); err != nil {
+				return failWithScreenshot(fmt.Sprintf("ticket_%d_price_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill price: %w", ticketNum, err))
+			}
+		}
+
+		time.Sleep(400 * time.Millisecond)
+		okPriceBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
+		if count, _ := okPriceBtn.Count(); count > 0 {
+			_ = okPriceBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+		}
+		time.Sleep(200 * time.Millisecond)
+		_ = page.Keyboard().Press("Enter")
+
+		// 4. File Upload
+		fileInput := page.Locator("input[type='file']").Last()
+		if err := fileInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
+			_ = page.Keyboard().Press("Enter")
+			if waitErr := fileInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); waitErr != nil {
+				return failWithScreenshot(fmt.Sprintf("ticket_%d_file_input", ticketNum), fmt.Errorf("ticket %d: file upload input not found: %w", ticketNum, waitErr))
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
 		if err := fileInput.SetInputFiles([]string{ticket.FilePath}); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_file_upload", ticketNum), fmt.Errorf("ticket %d: failed to upload file %s: %w", ticketNum, ticket.FilePath, err))
 		}
@@ -259,24 +296,11 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		// 5. More tickets prompt? (Only relevant if not the 10th ticket)
 		if ticketNum < 10 {
 			hasMore := (i < len(batch.Tickets) - 1)
-
-			// Wait for the next question (Ja/Nein choices or next input) to be active
-			for attempt := 0; attempt < 6; attempt++ {
-				choicesCount, _ := page.Locator("[role='radio']:visible, [data-qa*='choice']:visible, button:visible:has-text('Ja'), button:visible:has-text('Nein')").Count()
-				if choicesCount > 0 {
-					break
-				}
-				// If still on upload screen, re-click OK / press Enter
-				if count, _ := okUploadBtn.Count(); count > 0 {
-					_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-				}
-				_ = page.Keyboard().Press("Enter")
-				time.Sleep(1000 * time.Millisecond)
-			}
+			time.Sleep(1000 * time.Millisecond)
 
 			if hasMore {
 				jaChoice := page.Locator("[role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible, [data-qa*='choice-1']:visible").First()
-				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err == nil {
+				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err == nil {
 					_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				} else {
 					_ = page.Keyboard().Press("a")
@@ -293,7 +317,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 				}
 			} else {
 				neinChoice := page.Locator("[role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible, [data-qa*='choice-2']:visible").First()
-				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err == nil {
+				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err == nil {
 					_ = neinChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				} else {
 					_ = page.Keyboard().Press("b")
