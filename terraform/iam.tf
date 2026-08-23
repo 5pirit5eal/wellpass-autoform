@@ -171,9 +171,9 @@ resource "google_project_iam_member" "github_actions_scheduler_admin" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
-resource "google_project_iam_member" "github_actions_logging_viewer" {
+resource "google_project_iam_member" "github_actions_project_viewer" {
   project = var.project_id
-  role    = "roles/logging.viewer"
+  role    = "roles/viewer"
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
