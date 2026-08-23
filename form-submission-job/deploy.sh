@@ -59,7 +59,8 @@ echo "==> Building and pushing container image via Google Cloud Build in ${REGIO
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${PROJECT_ID}" \
   --region="${REGION}" \
-  --tag="${IMAGE_TAG}"
+  --tag="${IMAGE_TAG}" \
+  --suppress-logs
 
 # 2. Deploy or update Cloud Run Job
 echo "==> Deploying Cloud Run Job: ${JOB_NAME}..."

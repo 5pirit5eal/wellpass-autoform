@@ -167,7 +167,8 @@ deploy-job() {
   gcloud builds submit . \
     --project="${project}" \
     --region="${region}" \
-    --tag="${image_tag}"
+    --tag="${image_tag}" \
+    --suppress-logs
 
   echo "==> Deploying Cloud Run Job: ${job_name} in ${region}..."
   local env_vars="SOURCE_BUCKET=${source_bucket},SUBMITTED_BUCKET=${submitted_bucket},FAILED_BUCKET=${failed_bucket},TYPEFORM_URL=${typeform_url},EMAIL=${email},FIRST_NAME=${first_name},LAST_NAME=${last_name},IBAN=${iban},BIC=${bic},DRY_RUN=${dry_run},HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
