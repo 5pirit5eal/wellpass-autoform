@@ -59,6 +59,7 @@ echo "==> Building and pushing container image via Google Cloud Build in ${REGIO
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${PROJECT_ID}" \
   --region="${REGION}" \
+  --default-buckets-behavior=regional-user-owned-bucket \
   --tag="${IMAGE_TAG}"
 
 # 2. Deploy or update Cloud Run Job

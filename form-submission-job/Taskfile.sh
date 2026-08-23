@@ -167,6 +167,7 @@ deploy-job() {
   gcloud builds submit . \
     --project="${project}" \
     --region="${region}" \
+    --default-buckets-behavior=regional-user-owned-bucket \
     --tag="${image_tag}"
 
   echo "==> Deploying Cloud Run Job: ${job_name} in ${region}..."
