@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wellpass-autoform/receipts-function/internal/bigquery"
 	"github.com/wellpass-autoform/receipts-function/internal/config"
 	"github.com/wellpass-autoform/receipts-function/internal/extractor"
 	"github.com/wellpass-autoform/receipts-function/internal/storage"
@@ -37,14 +38,20 @@ type ReceiptProcessor struct {
 	cfg       *config.Config
 	extractor extractor.ReceiptExtractor
 	storage   storage.StorageService
+	recorder  bigquery.Recorder
 }
 
 // NewReceiptProcessor creates a new ReceiptProcessor instance.
-func NewReceiptProcessor(cfg *config.Config, ext extractor.ReceiptExtractor, store storage.StorageService) *ReceiptProcessor {
+func NewReceiptProcessor(cfg *config.Config, ext extractor.ReceiptExtractor, store storage.StorageService, rec ...bigquery.Recorder) *ReceiptProcessor {
+	var recorder bigquery.Recorder
+	if len(rec) > 0 && rec[0] != nil {
+		recorder = rec[0]
+	}
 	return &ReceiptProcessor{
 		cfg:       cfg,
 		extractor: ext,
 		storage:   store,
+		recorder:  recorder,
 	}
 }
 
@@ -54,6 +61,7 @@ func NewReceiptProcessor(cfg *config.Config, ext extractor.ReceiptExtractor, sto
 // 3. Checks for conflicts in target bucket
 // 4. If conflict or failure -> uploads to FailedBucket
 // 5. If clean -> uploads to TargetBucket with metadata attached
+// 6. Records analytics to BigQuery
 func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*ProcessResult, error) {
 	if len(req.Data) == 0 {
 		return nil, fmt.Errorf("receipt file data is empty")
@@ -78,6 +86,8 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		}
 	}
 
+	now := time.Now().UTC()
+
 	// Step 1: Extract structured data with Gemini
 	meta, err := p.extractor.ExtractReceipt(ctx, req.Data, req.ContentType)
 	if err != nil {
@@ -85,7 +95,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		failedMeta := map[string]string{
 			"status":            "failed",
 			"error":             err.Error(),
-			"processed_at":      time.Now().UTC().Format(time.RFC3339),
+			"processed_at":      now.Format(time.RFC3339),
 			"original_filename": req.Filename,
 		}
 
@@ -95,6 +105,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		}
 
 		p.deleteSourceIfPresent(ctx, req)
+		p.recordAnalytics(ctx, req.Filename, "failed", p.cfg.FailedBucket, "", err.Error(), nil, now)
 
 		return &ProcessResult{
 			Status:     "failed",
@@ -116,7 +127,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		conflictMeta := meta.ToMetadataMap()
 		conflictMeta["status"] = "conflict"
 		conflictMeta["conflict_reason"] = conflictReason
-		conflictMeta["processed_at"] = time.Now().UTC().Format(time.RFC3339)
+		conflictMeta["processed_at"] = now.Format(time.RFC3339)
 		conflictMeta["original_filename"] = req.Filename
 
 		uploadErr := p.storage.UploadReceipt(ctx, p.cfg.FailedBucket, req.Filename, req.Data, req.ContentType, conflictMeta)
@@ -125,6 +136,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		}
 
 		p.deleteSourceIfPresent(ctx, req)
+		p.recordAnalytics(ctx, req.Filename, "conflict", p.cfg.FailedBucket, conflictReason, "", meta, now)
 
 		return &ProcessResult{
 			Status:         "conflict",
@@ -138,7 +150,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 	// Step 3: No conflict -> Upload to TargetBucket with structured metadata
 	targetMeta := meta.ToMetadataMap()
 	targetMeta["status"] = "processed"
-	targetMeta["processed_at"] = time.Now().UTC().Format(time.RFC3339)
+	targetMeta["processed_at"] = now.Format(time.RFC3339)
 	targetMeta["original_filename"] = req.Filename
 
 	uploadErr := p.storage.UploadReceipt(ctx, p.cfg.TargetBucket, req.Filename, req.Data, req.ContentType, targetMeta)
@@ -147,6 +159,7 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 	}
 
 	p.deleteSourceIfPresent(ctx, req)
+	p.recordAnalytics(ctx, req.Filename, "processed", p.cfg.TargetBucket, "", "", meta, now)
 
 	return &ProcessResult{
 		Status:     "processed",
@@ -154,6 +167,21 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		ObjectName: req.Filename,
 		Metadata:   meta,
 	}, nil
+}
+
+func (p *ReceiptProcessor) recordAnalytics(
+	ctx context.Context,
+	filename, status, bucket, conflictReason, errMsg string,
+	meta *extractor.ReceiptMetadata,
+	processedAt time.Time,
+) {
+	if p.recorder == nil {
+		return
+	}
+	rec := bigquery.BuildRecord(filename, status, bucket, conflictReason, errMsg, meta, processedAt)
+	if err := p.recorder.Record(ctx, rec); err != nil {
+		log.Printf("Warning: failed to record processing analytics to BigQuery for %s: %v", filename, err)
+	}
 }
 
 func (p *ReceiptProcessor) deleteSourceIfPresent(ctx context.Context, req ProcessRequest) {

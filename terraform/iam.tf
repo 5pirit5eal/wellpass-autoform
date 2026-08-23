@@ -213,6 +213,19 @@ resource "google_project_iam_member" "form_submission_logging" {
   member  = "serviceAccount:${google_service_account.form_submission_job.email}"
 }
 
+resource "google_project_iam_member" "form_submission_bq_job_user" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
+# BigQuery dataset editor role for recording submissions
+resource "google_bigquery_dataset_iam_member" "form_submission_bq_editor" {
+  dataset_id = google_bigquery_dataset.receipts.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${google_service_account.form_submission_job.email}"
+}
+
 # Bucket access for the Job Service Account (read processed, write submitted archive, write failed coldline, delete from processed)
 resource "google_storage_bucket_iam_member" "form_submission_processed_admin" {
   bucket = google_storage_bucket.processed_receipts.name

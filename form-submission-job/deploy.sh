@@ -29,6 +29,8 @@ fi
 SOURCE_BUCKET="${SOURCE_BUCKET:-"${PROJECT_ID}-receipts-processed"}"
 SUBMITTED_BUCKET="${SUBMITTED_BUCKET:-"${PROJECT_ID}-receipts-submitted"}"
 FAILED_BUCKET="${FAILED_BUCKET:-"${PROJECT_ID}-receipts-failed"}"
+BIGQUERY_DATASET="${BIGQUERY_DATASET:-"${BIGQUERY_DATASET_ID:-"receipts_processing"}}"
+BIGQUERY_TABLE="${BIGQUERY_TABLE:-"${BIGQUERY_TABLE_ID:-"processing_results"}}"
 TYPEFORM_URL="${TYPEFORM_URL:-"https://egym.typeform.com/to/z5XBrNXf"}"
 EMAIL="${EMAIL:-""}"
 FIRST_NAME="${FIRST_NAME:-""}"
@@ -48,6 +50,7 @@ echo "Project:            ${PROJECT_ID}"
 echo "Region:             ${REGION}"
 echo "Image:              ${IMAGE_TAG}"
 echo "Job Name:           ${JOB_NAME}"
+echo "BigQuery Table:     ${BIGQUERY_DATASET}.${BIGQUERY_TABLE}"
 echo "Scheduler Trigger:  ${SCHEDULER_JOB_NAME} (${CRON_SCHEDULE})"
 echo "Job SA:             ${JOB_SA}"
 echo "Scheduler SA:       ${SCHEDULER_SA}"
@@ -64,7 +67,7 @@ gcloud builds submit "${SCRIPT_DIR}" \
 
 # 2. Deploy or update Cloud Run Job
 echo "==> Deploying Cloud Run Job: ${JOB_NAME}..."
-ENV_VARS="SOURCE_BUCKET=${SOURCE_BUCKET},SUBMITTED_BUCKET=${SUBMITTED_BUCKET},FAILED_BUCKET=${FAILED_BUCKET},TYPEFORM_URL=${TYPEFORM_URL},EMAIL=${EMAIL},FIRST_NAME=${FIRST_NAME},LAST_NAME=${LAST_NAME},IBAN=${IBAN},BIC=${BIC},DRY_RUN=${DRY_RUN},HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
+ENV_VARS="SOURCE_BUCKET=${SOURCE_BUCKET},SUBMITTED_BUCKET=${SUBMITTED_BUCKET},FAILED_BUCKET=${FAILED_BUCKET},PROJECT_ID=${PROJECT_ID},BIGQUERY_DATASET=${BIGQUERY_DATASET},BIGQUERY_TABLE=${BIGQUERY_TABLE},TYPEFORM_URL=${TYPEFORM_URL},EMAIL=${EMAIL},FIRST_NAME=${FIRST_NAME},LAST_NAME=${LAST_NAME},IBAN=${IBAN},BIC=${BIC},DRY_RUN=${DRY_RUN},HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
 
 if gcloud run jobs describe "${JOB_NAME}" --project="${PROJECT_ID}" --region="${REGION}" >/dev/null 2>&1; then
   echo "Updating existing Cloud Run Job ${JOB_NAME}..."

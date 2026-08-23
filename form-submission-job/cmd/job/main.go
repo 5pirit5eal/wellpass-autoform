@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/wellpass-autoform/form-submission-job/internal/bigquery"
 	"github.com/wellpass-autoform/form-submission-job/internal/config"
 	"github.com/wellpass-autoform/form-submission-job/internal/matcher"
 	"github.com/wellpass-autoform/form-submission-job/internal/processor"
@@ -47,10 +48,23 @@ func main() {
 		_ = store.Close()
 	}()
 
+	var recorder bigquery.Recorder
+	if cfg.ProjectID != "" && cfg.BigQueryDataset != "" && cfg.BigQueryTable != "" {
+		bqRec, bqErr := bigquery.NewBQRecorder(ctx, cfg)
+		if bqErr != nil {
+			log.Printf("Warning: could not initialize BigQuery recorder (%v); submission analytics will not be saved", bqErr)
+		} else {
+			recorder = bqRec
+			defer func() {
+				_ = bqRec.Close()
+			}()
+		}
+	}
+
 	poolMatcher := matcher.NewPoolMatcher(nil)
 	formSubmitter := submitter.NewPlaywrightSubmitter()
 
-	job := processor.NewJobProcessor(cfg, store, poolMatcher, formSubmitter, "")
+	job := processor.NewJobProcessor(cfg, store, poolMatcher, formSubmitter, "", recorder)
 
 	report, err := job.Run(ctx)
 	if err != nil {

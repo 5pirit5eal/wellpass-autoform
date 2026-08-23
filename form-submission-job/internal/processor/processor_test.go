@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wellpass-autoform/form-submission-job/internal/bigquery"
 	"github.com/wellpass-autoform/form-submission-job/internal/config"
 	"github.com/wellpass-autoform/form-submission-job/internal/matcher"
 	"github.com/wellpass-autoform/form-submission-job/internal/storage"
@@ -76,6 +77,7 @@ func TestJobProcessorWorkflow(t *testing.T) {
 	mockStore := storage.NewMockStorageService(mockItems)
 	mockMatch := matcher.NewPoolMatcher(nil)
 	mockSub := &submitter.MockSubmitter{}
+	mockBQ := &bigquery.MockRecorder{}
 
 	mockShot := "/tmp/mock_screenshot.png"
 	_ = os.WriteFile(mockShot, []byte("fake png content"), 0644)
@@ -83,7 +85,7 @@ func TestJobProcessorWorkflow(t *testing.T) {
 		_ = os.Remove(mockShot)
 	}()
 
-	proc := NewJobProcessor(cfg, mockStore, mockMatch, mockSub, tempDir)
+	proc := NewJobProcessor(cfg, mockStore, mockMatch, mockSub, tempDir, mockBQ)
 
 	report, err := proc.Run(context.Background())
 	if err != nil {
@@ -117,6 +119,22 @@ func TestJobProcessorWorkflow(t *testing.T) {
 	}
 	if len(mockStore.UploadedFiles) != 1 {
 		t.Errorf("expected 1 screenshot uploaded to failed bucket, got %d", len(mockStore.UploadedFiles))
+	}
+
+	// Verify BigQuery updates
+	if len(mockBQ.Updates) != 3 {
+		t.Fatalf("expected 3 BigQuery submission updates, got %d", len(mockBQ.Updates))
+	}
+	for _, u := range mockBQ.Updates {
+		if u.SubmissionStatus != "submitted" {
+			t.Errorf("expected submission status 'submitted', got %s", u.SubmissionStatus)
+		}
+		if u.SubmissionMonth != "2026-08" {
+			t.Errorf("expected submission month '2026-08', got %s", u.SubmissionMonth)
+		}
+		if u.ArchiveGCSURI == "" {
+			t.Errorf("expected non-empty archive GCS URI for %s", u.SourceFilename)
+		}
 	}
 }
 

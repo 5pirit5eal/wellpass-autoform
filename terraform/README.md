@@ -86,34 +86,50 @@ This directory provides the Terraform infrastructure as code (IaC) required for 
 
 | Service Account | Role Bindings | Purpose |
 | --- | --- | --- |
-| `receipts-function-sa` | `roles/aiplatform.user`<br>`roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser`<br>`roles/eventarc.eventReceiver` | Cloud Run Function runtime execution |
-| `form-submission-job-sa` | `roles/storage.objectAdmin`<br>`roles/logging.logWriter` | Cloud Run Job batch submission execution |
+| `receipts-function-sa` | `roles/aiplatform.user`<br>`roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser`<br>`roles/eventarc.eventReceiver` | Cloud Run Function runtime execution & BigQuery analytics ingestion |
+| `form-submission-job-sa` | `roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser` | Cloud Run Job batch submission execution & BigQuery status updates |
 | `scheduler-job-invoker-sa` | `roles/run.invoker` | Cloud Scheduler trigger invocation |
 | `gdrive-uploader-sa` | `roles/storage.objectCreator` (on `unprocessed` bucket) | Google Drive sync script upload |
 | `github-actions-sa` | `roles/cloudfunctions.developer`<br>`roles/run.developer`<br>`roles/cloudbuild.builds.editor`<br>`roles/cloudscheduler.admin`<br>`roles/logging.viewer`<br>`roles/artifactregistry.writer`<br>`roles/storage.admin`<br>`roles/eventarc.admin`<br>`roles/iam.serviceAccountUser` | GitHub Actions CI/CD deployment |
 
-### 3. BigQuery Dataset & Table
+### 3. Unified BigQuery Analytics
 
 - **Dataset**: `receipts_processing` (Location: `europe-west3` / `EU`)
 - **Table**: `processing_results`
   - **Partitioning**: Day-partitioned on `processed_at` timestamp.
-  - **Clustering**: Clustered on `["status", "location"]`.
-  - **Schema**:
-    - `receipt_id` (STRING, REQUIRED)
-    - `source_filename` (STRING, REQUIRED)
-    - `date` (DATE, NULLABLE)
-    - `ticket_price` (NUMERIC, NULLABLE)
-    - `currency` (STRING, NULLABLE)
-    - `location` (STRING, NULLABLE)
-    - `receipt_number` (STRING, NULLABLE)
-    - `customer_name` (STRING, NULLABLE)
-    - `ticket_type` (STRING, NULLABLE)
-    - `status` (STRING, REQUIRED) — `processed`, `conflict`, or `failed`
-    - `destination_bucket` (STRING, REQUIRED)
-    - `conflict_reason` (STRING, NULLABLE)
-    - `error_message` (STRING, NULLABLE)
-    - `raw_metadata` (JSON, NULLABLE)
-    - `processed_at` (TIMESTAMP, REQUIRED)
+  - **Clustering**: Clustered on `["status", "submission_status", "submission_month", "location"]`.
+  - **Unified Lifecycle Schema**:
+    - `receipt_id` (STRING, REQUIRED) — Unique identifier
+    - `source_filename` (STRING, REQUIRED) — Original filename
+    - `date` (DATE, NULLABLE) — Extracted receipt date
+    - `ticket_price` (NUMERIC, NULLABLE) — Ticket price amount in EUR
+    - `currency` (STRING, NULLABLE) — Currency code (`EUR`)
+    - `location` (STRING, NULLABLE) — Extracted swimming pool name
+    - `receipt_number` (STRING, NULLABLE) — Reference / invoice number
+    - `customer_name` (STRING, NULLABLE) — Customer name on receipt
+    - `ticket_type` (STRING, NULLABLE) — Admission ticket description
+    - `status` (STRING, REQUIRED) — Extraction status: `processed`, `conflict`, `failed`
+    - `destination_bucket` (STRING, REQUIRED) — Staged bucket name
+    - `conflict_reason` (STRING, NULLABLE) — Conflict reason if duplicate
+    - `error_message` (STRING, NULLABLE) — Extraction error details
+    - `raw_metadata` (JSON, NULLABLE) — Complete Gemini JSON payload
+    - `processed_at` (TIMESTAMP, REQUIRED) — Ingestion timestamp
+    - `submission_status` (STRING, NULLABLE) — `pending`, `submitted`, `dry_run_success`, `unmatched_pool`, `submission_failed`
+    - `submission_month` (STRING, NULLABLE) — Target reimbursement month (`YYYY-MM`)
+    - `batch_id` (STRING, NULLABLE) — Playwright submission batch ID
+    - `matched_pool_label` (STRING, NULLABLE) — Matched Typeform pool label
+    - `matcher_score` (FLOAT, NULLABLE) — Pool matcher confidence score
+    - `is_dry_run` (BOOLEAN, NULLABLE) — Whether submitted in dry-run mode
+    - `submitted_at` (TIMESTAMP, NULLABLE) — Typeform submission timestamp
+    - `archive_gcs_uri` (STRING, NULLABLE) — Final archive URI (`gs://...-submitted/YYYY-MM/<file>`)
+    - `screenshot_uris` (STRING REPEATED, NULLABLE) — Audit screenshot URIs
+    - `submission_error` (STRING, NULLABLE) — Playwright error message
+    - `last_updated_at` (TIMESTAMP, NULLABLE) — Last status modification timestamp
+
+- **Pre-configured Analytical Views**:
+  - `v_monthly_reimbursement_summary`: Aggregates monthly totals claimed vs. submitted, ticket counts, and average ticket price.
+  - `v_pool_stats`: Aggregates total visits, total spending, and average price per swimming pool facility.
+  - `v_pending_submissions`: Real-time view of processed receipts currently pending Typeform submission.
 
 ### 4. Workload Identity Federation (WIF)
 

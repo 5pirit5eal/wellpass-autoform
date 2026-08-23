@@ -119,6 +119,9 @@ deploy() {
   local ar_repo="${ARTIFACT_REGISTRY_REPOSITORY:-golang}"
   local docker_repo_flag=()
 
+  local bq_dataset="${BIGQUERY_DATASET:-${BIGQUERY_DATASET_ID:-receipts_processing}}"
+  local bq_table="${BIGQUERY_TABLE:-${BIGQUERY_TABLE_ID:-processing_results}}"
+
   if [ -n "$ar_repo" ]; then
     local repo_path="projects/${project}/locations/${region}/repositories/${ar_repo}"
     docker_repo_flag=("--docker-repository=${repo_path}")
@@ -135,7 +138,7 @@ deploy() {
     --trigger-bucket "$source_bucket" \
     --service-account "$function_sa" \
     "${docker_repo_flag[@]}" \
-    --set-env-vars "SOURCE_BUCKET=${source_bucket},TARGET_BUCKET=${target_bucket},FAILED_BUCKET=${failed_bucket},GEMINI_MODEL=${gemini_model},REGION=${region},PROJECT_ID=${project},GEMINI_LOCATION=${gemini_location}" \
+    --set-env-vars "SOURCE_BUCKET=${source_bucket},TARGET_BUCKET=${target_bucket},FAILED_BUCKET=${failed_bucket},GEMINI_MODEL=${gemini_model},REGION=${region},PROJECT_ID=${project},GEMINI_LOCATION=${gemini_location},BIGQUERY_DATASET=${bq_dataset},BIGQUERY_TABLE=${bq_table}" \
     --memory 512MB \
     --timeout 120s
 }

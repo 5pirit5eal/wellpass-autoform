@@ -8,6 +8,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/wellpass-autoform/receipts-function/internal/bigquery"
 	"github.com/wellpass-autoform/receipts-function/internal/config"
 	"github.com/wellpass-autoform/receipts-function/internal/extractor"
 	"github.com/wellpass-autoform/receipts-function/internal/handler"
@@ -49,7 +50,17 @@ func initializeDependencies(ctx context.Context) error {
 			return
 		}
 
-		proc := processor.NewReceiptProcessor(cfg, ext, store)
+		var recorder bigquery.Recorder
+		if cfg.ProjectID != "" && cfg.BigQueryDataset != "" && cfg.BigQueryTable != "" {
+			bqRec, bqErr := bigquery.NewBQRecorder(ctx, cfg)
+			if bqErr != nil {
+				log.Printf("Warning: could not initialize BigQuery recorder (%v); analytics will not be saved", bqErr)
+			} else {
+				recorder = bqRec
+			}
+		}
+
+		proc := processor.NewReceiptProcessor(cfg, ext, store, recorder)
 		cloudEventHandler = handler.NewCloudEventHandler(cfg, proc, store)
 	})
 	return initErr

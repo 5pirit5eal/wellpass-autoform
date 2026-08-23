@@ -21,6 +21,10 @@ type Config struct {
 	GeminiAPIKey string `json:"-"`
 	UseVertexAI  bool   `json:"use_vertex_ai"`
 
+	// BigQuery configuration (optional - if set, enables analytics recording)
+	BigQueryDataset string `json:"bigquery_dataset"`
+	BigQueryTable   string `json:"bigquery_table"`
+
 	// Server configuration
 	Port string `json:"port"`
 }
@@ -58,17 +62,28 @@ func LoadFromEnv() (*Config, error) {
 		port = "8080"
 	}
 
+	bqDataset := getFirstEnv("BIGQUERY_DATASET", "BIGQUERY_DATASET_ID")
+	if bqDataset == "" {
+		bqDataset = "receipts_processing"
+	}
+	bqTable := getFirstEnv("BIGQUERY_TABLE", "BIGQUERY_TABLE_ID")
+	if bqTable == "" {
+		bqTable = "processing_results"
+	}
+
 	cfg := &Config{
-		TargetBucket:   targetBucket,
-		FailedBucket:   failedBucket,
-		SourceBucket:   sourceBucket,
-		GeminiModel:    geminiModel,
-		ProjectID:      projectID,
-		Location:       location,
-		GeminiLocation: geminiLocation,
-		GeminiAPIKey:   geminiAPIKey,
-		UseVertexAI:    useVertexAI,
-		Port:           port,
+		TargetBucket:    targetBucket,
+		FailedBucket:    failedBucket,
+		SourceBucket:    sourceBucket,
+		GeminiModel:     geminiModel,
+		ProjectID:       projectID,
+		Location:        location,
+		GeminiLocation:  geminiLocation,
+		GeminiAPIKey:    geminiAPIKey,
+		UseVertexAI:     useVertexAI,
+		BigQueryDataset: bqDataset,
+		BigQueryTable:   bqTable,
+		Port:            port,
 	}
 
 	return cfg, nil

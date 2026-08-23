@@ -153,6 +153,8 @@ deploy-job() {
   local source_bucket="${SOURCE_BUCKET:-${RECEIPTS_TARGET_BUCKET:?SOURCE_BUCKET or RECEIPTS_TARGET_BUCKET is required}}"
   local submitted_bucket="${SUBMITTED_BUCKET:-${RECEIPTS_SUBMITTED_BUCKET:-${source_bucket/processed/submitted}}}"
   local failed_bucket="${FAILED_BUCKET:-${RECEIPTS_FAILED_BUCKET:-${source_bucket/processed/failed}}}"
+  local bq_dataset="${BIGQUERY_DATASET:-${BIGQUERY_DATASET_ID:-receipts_processing}}"
+  local bq_table="${BIGQUERY_TABLE:-${BIGQUERY_TABLE_ID:-processing_results}}"
   local typeform_url="${TYPEFORM_URL:-${WELLPASS_TYPEFORM_URL:-https://egym.typeform.com/to/z5XBrNXf}}"
   local email="${EMAIL:-${WELLPASS_EMAIL:?EMAIL or WELLPASS_EMAIL is required}}"
   local first_name="${FIRST_NAME:-${WELLPASS_FIRST_NAME:?FIRST_NAME or WELLPASS_FIRST_NAME is required}}"
@@ -171,7 +173,7 @@ deploy-job() {
     --tag="${image_tag}"
 
   echo "==> Deploying Cloud Run Job: ${job_name} in ${region}..."
-  local env_vars="SOURCE_BUCKET=${source_bucket},SUBMITTED_BUCKET=${submitted_bucket},FAILED_BUCKET=${failed_bucket},TYPEFORM_URL=${typeform_url},EMAIL=${email},FIRST_NAME=${first_name},LAST_NAME=${last_name},IBAN=${iban},BIC=${bic},DRY_RUN=${dry_run},HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
+  local env_vars="SOURCE_BUCKET=${source_bucket},SUBMITTED_BUCKET=${submitted_bucket},FAILED_BUCKET=${failed_bucket},PROJECT_ID=${project},BIGQUERY_DATASET=${bq_dataset},BIGQUERY_TABLE=${bq_table},TYPEFORM_URL=${typeform_url},EMAIL=${email},FIRST_NAME=${first_name},LAST_NAME=${last_name},IBAN=${iban},BIC=${bic},DRY_RUN=${dry_run},HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
 
   if gcloud run jobs describe "${job_name}" --project="${project}" --region="${region}" >/dev/null 2>&1; then
     gcloud run jobs update "${job_name}" \

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/wellpass-autoform/receipts-function/internal/bigquery"
 	"github.com/wellpass-autoform/receipts-function/internal/config"
 	"github.com/wellpass-autoform/receipts-function/internal/extractor"
 )
@@ -94,7 +95,8 @@ func TestProcessSuccess(t *testing.T) {
 	}
 
 	mockStore := newMockStorage()
-	proc := NewReceiptProcessor(cfg, mockExt, mockStore)
+	mockBQ := &bigquery.NoopRecorder{}
+	proc := NewReceiptProcessor(cfg, mockExt, mockStore, mockBQ)
 
 	req := ProcessRequest{
 		Data:             []byte("%PDF-1.4 mock content"),
@@ -139,6 +141,17 @@ func TestProcessSuccess(t *testing.T) {
 	if !mockStore.deletedObjects["unprocessed-bucket/receipt.pdf"] {
 		t.Errorf("expected unprocessed source object to be deleted after successful processing")
 	}
+
+	// Verify BigQuery recording
+	if len(mockBQ.Records) != 1 {
+		t.Fatalf("expected 1 BigQuery record, got %d", len(mockBQ.Records))
+	}
+	if mockBQ.Records[0].Status != "processed" {
+		t.Errorf("expected BQ status 'processed', got %s", mockBQ.Records[0].Status)
+	}
+	if !mockBQ.Records[0].SubmissionStatus.Valid || mockBQ.Records[0].SubmissionStatus.StringVal != "pending" {
+		t.Errorf("expected BQ submission status 'pending', got %v", mockBQ.Records[0].SubmissionStatus)
+	}
 }
 
 func TestProcessConflict(t *testing.T) {
@@ -159,10 +172,11 @@ func TestProcessConflict(t *testing.T) {
 	}
 
 	mockStore := newMockStorage()
+	mockBQ := &bigquery.NoopRecorder{}
 	// Mark object as existing in target bucket to trigger conflict
 	mockStore.existingObjects["target-bucket/receipt.pdf"] = true
 
-	proc := NewReceiptProcessor(cfg, mockExt, mockStore)
+	proc := NewReceiptProcessor(cfg, mockExt, mockStore, mockBQ)
 
 	req := ProcessRequest{
 		Data:             []byte("%PDF-1.4 mock content"),
@@ -201,6 +215,14 @@ func TestProcessConflict(t *testing.T) {
 	if !mockStore.deletedObjects["unprocessed-bucket/receipt.pdf"] {
 		t.Errorf("expected unprocessed source object to be deleted after conflict upload")
 	}
+
+	// Verify BigQuery recording
+	if len(mockBQ.Records) != 1 {
+		t.Fatalf("expected 1 BigQuery record, got %d", len(mockBQ.Records))
+	}
+	if mockBQ.Records[0].Status != "conflict" {
+		t.Errorf("expected BQ status 'conflict', got %s", mockBQ.Records[0].Status)
+	}
 }
 
 func TestProcessExtractionFailure(t *testing.T) {
@@ -215,7 +237,8 @@ func TestProcessExtractionFailure(t *testing.T) {
 	}
 
 	mockStore := newMockStorage()
-	proc := NewReceiptProcessor(cfg, mockExt, mockStore)
+	mockBQ := &bigquery.NoopRecorder{}
+	proc := NewReceiptProcessor(cfg, mockExt, mockStore, mockBQ)
 
 	req := ProcessRequest{
 		Data:             []byte("corrupted data"),
@@ -252,5 +275,13 @@ func TestProcessExtractionFailure(t *testing.T) {
 	// Verify deletion from unprocessed source bucket on failure
 	if !mockStore.deletedObjects["unprocessed-bucket/bad.pdf"] {
 		t.Errorf("expected unprocessed source object to be deleted after failure upload")
+	}
+
+	// Verify BigQuery recording
+	if len(mockBQ.Records) != 1 {
+		t.Fatalf("expected 1 BigQuery record, got %d", len(mockBQ.Records))
+	}
+	if mockBQ.Records[0].Status != "failed" {
+		t.Errorf("expected BQ status 'failed', got %s", mockBQ.Records[0].Status)
 	}
 }

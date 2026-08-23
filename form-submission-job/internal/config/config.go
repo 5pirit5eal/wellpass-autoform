@@ -25,6 +25,9 @@ type Config struct {
 	Headless        bool
 	TargetMonth     string // e.g. "2026-07" or "" for previous month
 	ScreenshotsDir  string
+	ProjectID       string
+	BigQueryDataset string
+	BigQueryTable   string
 }
 
 // FullName returns first and last name concatenated.
@@ -127,6 +130,30 @@ func Load() (*Config, error) {
 
 	targetMonth := strings.TrimSpace(os.Getenv("TARGET_MONTH"))
 
+	projectID := strings.TrimSpace(os.Getenv("PROJECT_ID"))
+	if projectID == "" {
+		projectID = strings.TrimSpace(os.Getenv("GCP_PROJECT_ID"))
+	}
+	if projectID == "" {
+		projectID = strings.TrimSpace(os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	}
+
+	bqDataset := strings.TrimSpace(os.Getenv("BIGQUERY_DATASET"))
+	if bqDataset == "" {
+		bqDataset = strings.TrimSpace(os.Getenv("BIGQUERY_DATASET_ID"))
+	}
+	if bqDataset == "" {
+		bqDataset = "receipts_processing"
+	}
+
+	bqTable := strings.TrimSpace(os.Getenv("BIGQUERY_TABLE"))
+	if bqTable == "" {
+		bqTable = strings.TrimSpace(os.Getenv("BIGQUERY_TABLE_ID"))
+	}
+	if bqTable == "" {
+		bqTable = "processing_results"
+	}
+
 	return &Config{
 		SourceBucket:    sourceBucket,
 		SubmittedBucket: submittedBucket,
@@ -141,5 +168,8 @@ func Load() (*Config, error) {
 		Headless:        headless,
 		TargetMonth:     targetMonth,
 		ScreenshotsDir:  screenshotsDir,
+		ProjectID:       projectID,
+		BigQueryDataset: bqDataset,
+		BigQueryTable:   bqTable,
 	}, nil
 }
