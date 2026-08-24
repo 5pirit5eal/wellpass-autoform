@@ -77,14 +77,8 @@ func (p *ReceiptProcessor) Process(ctx context.Context, req ProcessRequest) (*Pr
 		req.Filename = fmt.Sprintf("receipt_%s%s", time.Now().UTC().Format("20060102_150405"), ext)
 	}
 
-	// Normalize content type
-	if req.ContentType == "" || req.ContentType == "application/octet-stream" {
-		if len(req.Data) >= 4 && string(req.Data[:4]) == "%PDF" {
-			req.ContentType = "application/pdf"
-		} else {
-			req.ContentType = "text/plain"
-		}
-	}
+	// Normalize and detect true content type
+	req.ContentType = detectContentType(req.Filename, req.Data, req.ContentType)
 
 	now := time.Now().UTC()
 
@@ -203,4 +197,31 @@ func sanitizeFilename(name string) string {
 		return ""
 	}
 	return clean
+}
+
+func detectContentType(filename string, data []byte, initial string) string {
+	// 1. Check PDF magic bytes (%PDF)
+	if len(data) >= 4 && string(data[:4]) == "%PDF" {
+		return "application/pdf"
+	}
+
+	// 2. Check filename extension
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".pdf":
+		return "application/pdf"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".txt":
+		return "text/plain"
+	}
+
+	// 3. Check initial content type if present and not default octet-stream
+	if initial != "" && initial != "application/octet-stream" {
+		return initial
+	}
+
+	return "application/pdf"
 }

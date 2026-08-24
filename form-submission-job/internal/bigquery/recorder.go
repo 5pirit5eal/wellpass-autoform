@@ -13,6 +13,7 @@ import (
 // SubmissionUpdate contains the submission status and metadata for a single receipt.
 type SubmissionUpdate struct {
 	SourceFilename   string
+	CustomerName     string
 	SubmissionStatus string // "submitted", "dry_run_success", "unmatched_pool", "submission_failed"
 	SubmissionMonth  string
 	BatchID          string
@@ -85,6 +86,7 @@ MERGE %s.%s T
 USING (
   SELECT
     @source_filename AS source_filename,
+    @customer_name AS customer_name,
     @submission_status AS submission_status,
     @submission_month AS submission_month,
     @batch_id AS batch_id,
@@ -100,6 +102,7 @@ USING (
 ON T.source_filename = S.source_filename
 WHEN MATCHED THEN
   UPDATE SET
+    customer_name = COALESCE(NULLIF(S.customer_name, ''), T.customer_name),
     submission_status = S.submission_status,
     submission_month = S.submission_month,
     batch_id = S.batch_id,
@@ -115,6 +118,7 @@ WHEN NOT MATCHED THEN
   INSERT (
     receipt_id,
     source_filename,
+    customer_name,
     status,
     destination_bucket,
     submission_status,
@@ -133,6 +137,7 @@ WHEN NOT MATCHED THEN
   VALUES (
     GENERATE_UUID(),
     S.source_filename,
+    S.customer_name,
     'processed',
     'unknown',
     S.submission_status,
@@ -153,6 +158,7 @@ WHEN NOT MATCHED THEN
 		q := r.client.Query(mergeSQL)
 		q.Parameters = []bigquery.QueryParameter{
 			{Name: "source_filename", Value: u.SourceFilename},
+			{Name: "customer_name", Value: u.CustomerName},
 			{Name: "submission_status", Value: u.SubmissionStatus},
 			{Name: "submission_month", Value: u.SubmissionMonth},
 			{Name: "batch_id", Value: u.BatchID},

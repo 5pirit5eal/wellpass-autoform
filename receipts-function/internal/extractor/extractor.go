@@ -69,7 +69,6 @@ Analyze the provided receipt (PDF or text/image) and extract the required fields
 - currency: Currency code (e.g., "EUR").
 - location: The specific name and location of the swimming pool or facility (e.g., "Schwimm in Bilk", "Freibad Allwetterbad Flingern", "Münster-Therme").
 - receipt_number: The receipt number, invoice number (Rechnung Nr.), order number (Bestellung), reservation number, or POS transaction ID if present.
-- customer_name: The customer or attendee name if listed on the receipt.
 - ticket_type: The description of the ticket (e.g., "Erwachsene 1", "1 x Erwachsene Bad BgA DPS").`
 
 // ExtractReceipt calls Gemini with structured output schema to extract receipt metadata.
@@ -111,10 +110,6 @@ func (g *GeminiExtractor) ExtractReceipt(ctx context.Context, fileBytes []byte, 
 			"receipt_number": {
 				Type:        genai.TypeString,
 				Description: "Receipt, invoice, booking, or order number",
-			},
-			"customer_name": {
-				Type:        genai.TypeString,
-				Description: "Customer name if present",
 			},
 			"ticket_type": {
 				Type:        genai.TypeString,

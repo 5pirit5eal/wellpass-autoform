@@ -15,7 +15,6 @@ type ReceiptMetadata struct {
 	Currency      string  `json:"currency"`       // Currency code, e.g. "EUR"
 	Location      string  `json:"location"`       // Swimming pool name, e.g. "Schwimm in Bilk"
 	ReceiptNumber string  `json:"receipt_number"` // Receipt or invoice number, e.g. "R-1091126"
-	CustomerName  string  `json:"customer_name,omitempty"`
 	TicketType    string  `json:"ticket_type,omitempty"`
 }
 
@@ -23,7 +22,6 @@ type ReceiptMetadata struct {
 func (m *ReceiptMetadata) Normalize() {
 	m.Location = strings.TrimSpace(m.Location)
 	m.ReceiptNumber = strings.TrimSpace(m.ReceiptNumber)
-	m.CustomerName = strings.TrimSpace(m.CustomerName)
 	m.TicketType = strings.TrimSpace(m.TicketType)
 
 	if m.Currency == "" {
@@ -100,9 +98,6 @@ func (m *ReceiptMetadata) ToMetadataMap() map[string]string {
 
 	if m.ReceiptNumber != "" {
 		meta["receipt_number"] = m.ReceiptNumber
-	}
-	if m.CustomerName != "" {
-		meta["customer_name"] = m.CustomerName
 	}
 	if m.TicketType != "" {
 		meta["ticket_type"] = m.TicketType

@@ -15,7 +15,6 @@ func TestBuildRecord(t *testing.T) {
 		Currency:      "EUR",
 		Location:      "Schwimm in Bilk",
 		ReceiptNumber: "REC-12345",
-		CustomerName:  "Ruben Schulze",
 		TicketType:    "Einzelkarte",
 	}
 

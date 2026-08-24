@@ -86,7 +86,6 @@ func TestReceiptMetadataToMetadataMap(t *testing.T) {
 		Currency:      "EUR",
 		Location:      "Schwimm in Bilk",
 		ReceiptNumber: "104307524/1",
-		CustomerName:  "Max Mustermann",
 		TicketType:    "Erwachsene 1",
 	}
 
@@ -106,9 +105,6 @@ func TestReceiptMetadataToMetadataMap(t *testing.T) {
 	}
 	if mapMeta["receipt_number"] != "104307524/1" {
 		t.Errorf("expected receipt_number '104307524/1', got %s", mapMeta["receipt_number"])
-	}
-	if mapMeta["customer_name"] != "Max Mustermann" {
-		t.Errorf("expected customer_name 'Max Mustermann', got %s", mapMeta["customer_name"])
 	}
 	if mapMeta["ticket_type"] != "Erwachsene 1" {
 		t.Errorf("expected ticket_type 'Erwachsene 1', got %s", mapMeta["ticket_type"])

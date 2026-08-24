@@ -285,3 +285,47 @@ func TestProcessExtractionFailure(t *testing.T) {
 		t.Errorf("expected BQ status 'failed', got %s", mockBQ.Records[0].Status)
 	}
 }
+
+func TestProcessContentTypeCorrection(t *testing.T) {
+	cfg := &config.Config{
+		SourceBucket: "unprocessed-bucket",
+		TargetBucket: "target-bucket",
+		FailedBucket: "failed-bucket",
+	}
+
+	mockExt := &mockExtractor{
+		meta: &extractor.ReceiptMetadata{
+			Date:        "2026-08-07",
+			TicketPrice: 5.44,
+			Location:    "Schwimm in Bilk",
+		},
+	}
+
+	mockStore := newMockStorage()
+	proc := NewReceiptProcessor(cfg, mockExt, mockStore)
+
+	// Ingestion event has erroneous text/plain content type, but data is PDF
+	req := ProcessRequest{
+		Data:             []byte("%PDF-1.4 test"),
+		Filename:         "receipt.pdf",
+		ContentType:      "text/plain",
+		SourceBucket:     "unprocessed-bucket",
+		SourceObjectName: "receipt.pdf",
+	}
+
+	res, err := proc.Process(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Status != "processed" {
+		t.Fatalf("expected processed status, got %s", res.Status)
+	}
+
+	upload, ok := mockStore.uploadedObjects["target-bucket/receipt.pdf"]
+	if !ok {
+		t.Fatalf("expected receipt.pdf uploaded to target bucket")
+	}
+	if upload.ContentType != "application/pdf" {
+		t.Errorf("expected corrected ContentType 'application/pdf', got %q", upload.ContentType)
+	}
+}

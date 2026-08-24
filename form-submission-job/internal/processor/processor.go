@@ -253,6 +253,7 @@ func (p *JobProcessor) recordBatchSuccess(ctx context.Context, tickets []submitt
 		archiveURI := fmt.Sprintf("gs://%s/%s/%s", p.cfg.SubmittedBucket, month, t.ObjectName)
 		updates = append(updates, &bigquery.SubmissionUpdate{
 			SourceFilename:   t.ObjectName,
+			CustomerName:     p.cfg.FullName(),
 			SubmissionStatus: status,
 			SubmissionMonth:  month,
 			BatchID:          batchID,
@@ -280,6 +281,7 @@ func (p *JobProcessor) recordBatchFailure(ctx context.Context, tickets []submitt
 	for _, t := range tickets {
 		updates = append(updates, &bigquery.SubmissionUpdate{
 			SourceFilename:   t.ObjectName,
+			CustomerName:     p.cfg.FullName(),
 			SubmissionStatus: "submission_failed",
 			SubmissionMonth:  month,
 			BatchID:          batchID,

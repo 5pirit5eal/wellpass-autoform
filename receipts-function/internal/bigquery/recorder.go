@@ -83,9 +83,6 @@ func BuildRecord(
 		if meta.ReceiptNumber != "" {
 			rec.ReceiptNumber = bigquery.NullString{StringVal: meta.ReceiptNumber, Valid: true}
 		}
-		if meta.CustomerName != "" {
-			rec.CustomerName = bigquery.NullString{StringVal: meta.CustomerName, Valid: true}
-		}
 		if meta.TicketType != "" {
 			rec.TicketType = bigquery.NullString{StringVal: meta.TicketType, Valid: true}
 		}
