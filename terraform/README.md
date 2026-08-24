@@ -86,7 +86,7 @@ This directory provides the Terraform infrastructure as code (IaC) required for 
 
 | Service Account | Role Bindings | Purpose |
 | --- | --- | --- |
-| `receipts-function-sa` | `roles/aiplatform.user`<br>`roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser`<br>`roles/eventarc.eventReceiver` | Cloud Run Function runtime execution & BigQuery analytics ingestion |
+| `receipts-function-sa` | `roles/aiplatform.user`<br>`roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser`<br>`roles/eventarc.eventReceiver`<br>`roles/run.invoker` | Cloud Run Function runtime execution & BigQuery analytics ingestion |
 | `form-submission-job-sa` | `roles/storage.objectAdmin`<br>`roles/logging.logWriter`<br>`roles/bigquery.dataEditor`<br>`roles/bigquery.jobUser` | Cloud Run Job batch submission execution & BigQuery status updates |
 | `scheduler-job-invoker-sa` | `roles/run.invoker` | Cloud Scheduler trigger invocation |
 | `gdrive-uploader-sa` | `roles/storage.objectCreator` (on `unprocessed` bucket) | Google Drive sync script upload |

@@ -28,6 +28,12 @@ resource "google_project_iam_member" "receipts_function_event_receiver" {
   member  = "serviceAccount:${google_service_account.receipts_function.email}"
 }
 
+resource "google_project_iam_member" "receipts_function_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.receipts_function.email}"
+}
+
 resource "google_project_iam_member" "receipts_function_bq_job_user" {
   project = var.project_id
   role    = "roles/bigquery.jobUser"
