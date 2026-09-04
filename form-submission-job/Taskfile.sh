@@ -155,7 +155,7 @@ deploy-job() {
   local failed_bucket="${FAILED_BUCKET:-${RECEIPTS_FAILED_BUCKET:-${source_bucket/processed/failed}}}"
   local bq_dataset="${BIGQUERY_DATASET:-${BIGQUERY_DATASET_ID:-receipts_processing}}"
   local bq_table="${BIGQUERY_TABLE:-${BIGQUERY_TABLE_ID:-processing_results}}"
-  local typeform_url="${TYPEFORM_URL:-${WELLPASS_TYPEFORM_URL:-https://egym.typeform.com/to/z5XBrNXf}}"
+  local typeform_url="${TYPEFORM_URL:-${WELLPASS_TYPEFORM_URL:-https://survey.egym.com/to/AwCQrDZ9}}"
   local email="${EMAIL:-${WELLPASS_EMAIL:?EMAIL or WELLPASS_EMAIL is required}}"
   local first_name="${FIRST_NAME:-${WELLPASS_FIRST_NAME:?FIRST_NAME or WELLPASS_FIRST_NAME is required}}"
   local last_name="${LAST_NAME:-${WELLPASS_LAST_NAME:?LAST_NAME or WELLPASS_LAST_NAME is required}}"

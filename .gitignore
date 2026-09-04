@@ -163,6 +163,7 @@ venv.bak/
 *credentials*.json
 *service-account*.json
 client_secret*.json
+gha-creds*.json
 
 # Logs
 downloaded-logs*.json

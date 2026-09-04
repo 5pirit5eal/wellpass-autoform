@@ -25,7 +25,7 @@ func TestPlaywrightLiveDryRun(t *testing.T) {
 
 	batch := SubmissionBatch{
 		BatchID:        "test_dry_run_batch",
-		TypeformURL:    "https://egym.typeform.com/to/z5XBrNXf",
+		TypeformURL:    "https://survey.egym.com/to/AwCQrDZ9",
 		Email:          "max.mustermann@example.com",
 		FullName:       "Max Mustermann",
 		IBAN:           "DE12345678901234567890",
