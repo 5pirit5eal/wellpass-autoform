@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
@@ -49,6 +50,13 @@ func initializeDependencies(ctx context.Context) error {
 		repo := os.Getenv("GITHUB_REPOSITORY")
 		if repo == "" {
 			repo = "wellpass-autoform"
+		}
+		if strings.Contains(repo, "/") {
+			parts := strings.SplitN(repo, "/", 2)
+			if owner == "" || owner == "5pirit5eal" {
+				owner = parts[0]
+			}
+			repo = parts[1]
 		}
 
 		secretID := os.Getenv("ACTION_DISPATCH_SECRET_ID")

@@ -58,6 +58,7 @@ deploy() {
     local service_account="${FAILURE_DISPATCHER_SERVICE_ACCOUNT:-job-failure-dispatcher-sa@${project}.iam.gserviceaccount.com}"
     local owner="${GITHUB_OWNER:-5pirit5eal}"
     local repo="${GITHUB_REPOSITORY:-wellpass-autoform}"
+    repo="${repo##*/}"
     local secret_id="${ACTION_DISPATCH_SECRET_ID:-github-dispatch-token}"
 
     echo "Deploying failure-dispatcher Cloud Run function to ${region} (Trigger: Pub/Sub topic ${topic})..."

@@ -27,8 +27,15 @@ func TestParsePubSubData_CloudMonitoringAlert(t *testing.T) {
 		"incident": {
 			"incident_id": "0.abcdef123",
 			"resource_id": "form-submission-job",
-			"resource_name": "projects/my-proj/locations/europe-west3/jobs/form-submission-job",
+			"resource_name": "receipt-processing-egym Cloud Run Job labels {project_id=receipt-processing-egym, job_name=form-submission-job}",
 			"resource_type": "cloud_run_job",
+			"resource": {
+				"type": "cloud_run_job",
+				"labels": {
+					"job_name": "form-submission-job",
+					"project_id": "receipt-processing-egym"
+				}
+			},
 			"condition_name": "Job Failed Executions",
 			"summary": "Cloud Run Job form-submission-job has failed executions",
 			"url": "https://console.cloud.google.com/monitoring/alerting/incidents/0.abcdef123",
@@ -50,6 +57,22 @@ func TestParsePubSubData_CloudMonitoringAlert(t *testing.T) {
 	}
 	if payload.IncidentURL != "https://console.cloud.google.com/monitoring/alerting/incidents/0.abcdef123" {
 		t.Errorf("unexpected incident URL: %q", payload.IncidentURL)
+	}
+}
+
+func TestParsePubSubData_CloudMonitoringAlert_ResourceNameOnly(t *testing.T) {
+	alertJSON := `{
+		"incident": {
+			"incident_id": "0.abcdef123",
+			"resource_name": "receipt-processing-egym Cloud Run Job labels {project_id=receipt-processing-egym, job_name=form-submission-job}",
+			"condition_name": "Job Failed Executions"
+		}
+	}`
+
+	payload := ParsePubSubData([]byte(alertJSON))
+
+	if payload.JobName != "form-submission-job" {
+		t.Errorf("expected job_name form-submission-job, got %q", payload.JobName)
 	}
 }
 
@@ -119,6 +142,36 @@ func TestDispatcher_Dispatch_Success(t *testing.T) {
 	}
 	if capturedBody.ClientPayload.IncidentID != "inc-123" {
 		t.Errorf("expected client_payload incident_id 'inc-123', got %q", capturedBody.ClientPayload.IncidentID)
+	}
+}
+
+func TestDispatcher_Dispatch_RepoWithSlash(t *testing.T) {
+	var capturedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	cfg := &Config{
+		ProjectID:   "my-proj",
+		GitHubOwner: "5pirit5eal",
+		GitHubRepo:  "5pirit5eal/wellpass-autoform", // Contains slash
+		EventType:   "cloud-run-job-failure",
+	}
+
+	secrets := &mockSecretAccessor{secret: "ghp_test"}
+	d := NewDispatcher(cfg, secrets, server.Client())
+	d.httpClient.Transport = &rewriteTransport{targetURL: server.URL, original: http.DefaultTransport}
+
+	err := d.Dispatch(context.Background(), DispatchPayload{JobName: "form-submission-job"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expectedPath := "/repos/5pirit5eal/wellpass-autoform/dispatches"
+	if capturedPath != expectedPath {
+		t.Errorf("expected path %q, got %q", expectedPath, capturedPath)
 	}
 }
 

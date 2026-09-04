@@ -72,6 +72,14 @@ type CloudMonitoringAlert struct {
 		ResourceID    string `json:"resource_id"`
 		ResourceName  string `json:"resource_name"`
 		ResourceType  string `json:"resource_type"`
+		Resource      struct {
+			Type   string            `json:"type"`
+			Labels map[string]string `json:"labels"`
+		} `json:"resource"`
+		Metric        struct {
+			Type   string            `json:"type"`
+			Labels map[string]string `json:"labels"`
+		} `json:"metric"`
 		ConditionName string `json:"condition_name"`
 		Summary       string `json:"summary"`
 		URL           string `json:"url"`
@@ -151,7 +159,18 @@ func ParsePubSubData(data []byte) DispatchPayload {
 		payload.ConditionName = alert.Incident.ConditionName
 		payload.ResourceName = alert.Incident.ResourceName
 		payload.IncidentURL = alert.Incident.URL
-		if alert.Incident.ResourceName != "" {
+		if alert.Incident.Resource.Labels != nil && alert.Incident.Resource.Labels["job_name"] != "" {
+			payload.JobName = alert.Incident.Resource.Labels["job_name"]
+		} else if strings.Contains(alert.Incident.ResourceName, "job_name=") {
+			idx := strings.Index(alert.Incident.ResourceName, "job_name=")
+			rest := alert.Incident.ResourceName[idx+len("job_name="):]
+			endIdx := strings.IndexAny(rest, ",} ")
+			if endIdx != -1 {
+				payload.JobName = rest[:endIdx]
+			} else {
+				payload.JobName = rest
+			}
+		} else if alert.Incident.ResourceName != "" {
 			parts := strings.Split(alert.Incident.ResourceName, "/")
 			payload.JobName = parts[len(parts)-1]
 		}
@@ -203,7 +222,17 @@ func (d *Dispatcher) Dispatch(ctx context.Context, payload DispatchPayload) erro
 		return fmt.Errorf("failed to marshal dispatch body: %w", err)
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/dispatches", d.cfg.GitHubOwner, d.cfg.GitHubRepo)
+	owner := d.cfg.GitHubOwner
+	repo := d.cfg.GitHubRepo
+	if strings.Contains(repo, "/") {
+		parts := strings.SplitN(repo, "/", 2)
+		if owner == "" || owner == "5pirit5eal" {
+			owner = parts[0]
+		}
+		repo = parts[1]
+	}
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/dispatches", owner, repo)
 	log.Printf("Triggering GitHub repository_dispatch: POST %s (event_type=%s, job=%s)...", url, d.cfg.EventType, payload.JobName)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
