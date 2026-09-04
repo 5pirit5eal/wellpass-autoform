@@ -7,6 +7,7 @@ on:
     paths:
       - "receipts-function/**"
       - "form-submission-job/**"
+      - "failure-dispatcher/**"
       - ".github/workflows/validate.yml"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - "receipts-function/**"
       - "form-submission-job/**"
+      - "failure-dispatcher/**"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 
@@ -75,3 +77,23 @@ jobs:
           ./Taskfile.sh validate
           ./Taskfile.sh test
           ./Taskfile.sh build
+
+  validate-failure-dispatcher:
+    name: Validate failure-dispatcher
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: failure-dispatcher/go.mod
+          check-latest: true
+          cache-dependency-path: failure-dispatcher/go.sum
+
+      - name: Run Taskfile Validate & Test
+        working-directory: failure-dispatcher
+        run: |
+          ./Taskfile.sh validate
+          ./Taskfile.sh test
