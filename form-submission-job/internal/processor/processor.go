@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/wellpass-autoform/form-submission-job/internal/bigquery"
@@ -168,7 +169,7 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 		var screenshotURIs []string
 		if subResult != nil {
 			report.BatchResults = append(report.BatchResults, subResult)
-			screenshotURIs = p.uploadBatchScreenshots(ctx, submissionMonth, batchID, subResult.Screenshots)
+			screenshotURIs = p.uploadBatchScreenshots(ctx, submissionMonth, batchID, batchTickets, subResult.Screenshots, err)
 		}
 		if err != nil {
 			p.recordBatchFailure(ctx, batchTickets, submissionMonth, batchID, err.Error(), screenshotURIs)
@@ -195,12 +196,19 @@ func (p *JobProcessor) Run(ctx context.Context) (*RunReport, error) {
 	return report, nil
 }
 
-func (p *JobProcessor) uploadBatchScreenshots(ctx context.Context, month, batchID string, screenshots []string) []string {
+func (p *JobProcessor) uploadBatchScreenshots(ctx context.Context, month, batchID string, tickets []submitter.SubmissionTicket, screenshots []string, subErr error) []string {
 	if len(screenshots) == 0 || p.cfg.FailedBucket == "" {
 		return nil
 	}
 	log.Printf("Uploading %d screenshot(s) to inspection bucket gs://%s/screenshots/%s/%s/...", len(screenshots), p.cfg.FailedBucket, month, batchID)
 	var uris []string
+
+	var receiptFiles []string
+	for _, t := range tickets {
+		receiptFiles = append(receiptFiles, t.ObjectName)
+	}
+	receiptsJoined := strings.Join(receiptFiles, ",")
+
 	for _, sPath := range screenshots {
 		if sPath == "" {
 			continue
@@ -208,9 +216,16 @@ func (p *JobProcessor) uploadBatchScreenshots(ctx context.Context, month, batchI
 		base := filepath.Base(sPath)
 		targetObj := fmt.Sprintf("screenshots/%s/%s/%s", month, batchID, base)
 		meta := map[string]string{
-			"batch_id":    batchID,
-			"month":       month,
-			"uploaded_at": time.Now().UTC().Format(time.RFC3339),
+			"batch_id":      batchID,
+			"month":         month,
+			"uploaded_at":   time.Now().UTC().Format(time.RFC3339),
+			"receipt_files": receiptsJoined,
+			"status":        "success",
+		}
+		if subErr != nil {
+			meta["status"] = "failed"
+			meta["error_message"] = subErr.Error()
+			meta["failed_at"] = time.Now().UTC().Format(time.RFC3339)
 		}
 		if err := p.storage.UploadFile(ctx, p.cfg.FailedBucket, targetObj, sPath, "image/png", meta); err != nil {
 			log.Printf("Warning: failed to upload screenshot %s to gs://%s/%s: %v", sPath, p.cfg.FailedBucket, targetObj, err)

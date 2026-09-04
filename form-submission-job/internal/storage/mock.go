@@ -17,6 +17,7 @@ type MockStorageService struct {
 	FailedList     []string
 	DeletedList    []string
 	UploadedFiles  map[string][]byte
+	UploadedMeta   map[string]map[string]string
 }
 
 // NewMockStorageService creates a new mock storage service.
@@ -25,6 +26,7 @@ func NewMockStorageService(items []*ReceiptItem) *MockStorageService {
 		Items:          items,
 		DownloadedData: make(map[string][]byte),
 		UploadedFiles:  make(map[string][]byte),
+		UploadedMeta:   make(map[string]map[string]string),
 	}
 }
 
@@ -111,5 +113,8 @@ func (m *MockStorageService) UploadFile(ctx context.Context, bucket, objectName,
 	}
 	key := fmt.Sprintf("%s/%s", bucket, objectName)
 	m.UploadedFiles[key] = data
+	if metadata != nil {
+		m.UploadedMeta[key] = metadata
+	}
 	return nil
 }

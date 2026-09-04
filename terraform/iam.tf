@@ -184,6 +184,13 @@ resource "google_project_iam_member" "github_actions_logging_viewer" {
   member  = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+# Vertex AI user role for GitHub Actions running OpenCode investigation agent
+resource "google_project_iam_member" "github_actions_vertex_user" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # 4. Google Drive to GCS Uploader Service Account
 # ---------------------------------------------------------------------------------------------------------------------
@@ -278,6 +285,42 @@ resource "google_project_iam_member" "scheduler_run_invoker" {
 # Allow GitHub Actions to configure Cloud Scheduler with the scheduler invoker service account
 resource "google_service_account_iam_member" "github_actions_act_as_scheduler_sa" {
   service_account_id = google_service_account.scheduler_job_invoker.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 7. Job Failure Dispatcher Cloud Function Service Account
+# ---------------------------------------------------------------------------------------------------------------------
+resource "google_service_account" "failure_dispatcher" {
+  account_id   = "job-failure-dispatcher-sa"
+  display_name = "Cloud Run Job Failure Dispatcher Service Account"
+  description  = "Runtime service account used by the Cloud Function that dispatches job failure webhooks to GitHub Actions"
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "failure_dispatcher_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.failure_dispatcher.email}"
+}
+
+resource "google_project_iam_member" "failure_dispatcher_event_receiver" {
+  project = var.project_id
+  role    = "roles/eventarc.eventReceiver"
+  member  = "serviceAccount:${google_service_account.failure_dispatcher.email}"
+}
+
+resource "google_project_iam_member" "failure_dispatcher_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.failure_dispatcher.email}"
+}
+
+# Allow GitHub Actions CI/CD to deploy the failure dispatcher Cloud Function
+resource "google_service_account_iam_member" "github_actions_act_as_dispatcher_sa" {
+  service_account_id = google_service_account.failure_dispatcher.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.github_actions.email}"
 }

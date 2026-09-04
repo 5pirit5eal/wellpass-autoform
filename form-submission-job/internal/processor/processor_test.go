@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,5 +151,76 @@ func TestChunkTickets(t *testing.T) {
 	}
 	if len(chunks[0]) != 10 || len(chunks[1]) != 10 || len(chunks[2]) != 5 {
 		t.Errorf("unexpected chunk sizes: %d, %d, %d", len(chunks[0]), len(chunks[1]), len(chunks[2]))
+	}
+}
+
+func TestJobProcessorFailureScreenshotMetadata(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "job-fail-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
+
+	mockShot := "/tmp/mock_screenshot.png"
+	_ = os.WriteFile(mockShot, []byte("fake screenshot data"), 0644)
+	defer func() {
+		_ = os.Remove(mockShot)
+	}()
+
+	mockItems := []*storage.ReceiptItem{
+		{
+			Bucket:      "test-bucket",
+			ObjectName:  "receipt1.pdf",
+			Date:        "2026-08-10",
+			TicketPrice: 5.00,
+			Location:    "Schwimm in Bilk",
+			Status:      "processed",
+			CreatedAt:   time.Now(),
+		},
+	}
+
+	mockStore := storage.NewMockStorageService(mockItems)
+	mockPoolMatcher := matcher.NewPoolMatcher(nil)
+	failingSubmitter := &submitter.MockSubmitter{ShouldFail: true}
+	mockRec := &bigquery.MockRecorder{}
+
+	cfg := &config.Config{
+		ProjectID:       "test-project",
+		SourceBucket:    "test-processed-bucket",
+		SubmittedBucket: "test-submitted-bucket",
+		FailedBucket:    "test-failed-bucket",
+		TargetMonth:     "2026-08",
+		DryRun:          false,
+	}
+
+	proc := NewJobProcessor(cfg, mockStore, mockPoolMatcher, failingSubmitter, tempDir, mockRec)
+	report, err := proc.Run(context.Background())
+	if err == nil {
+		t.Fatalf("expected error from failing submitter, got nil")
+	}
+	if report == nil {
+		t.Fatalf("expected report to be returned even on failure")
+	}
+
+	// Verify screenshots have failure metadata attached
+	foundScreenshot := false
+	for k, meta := range mockStore.UploadedMeta {
+		if strings.Contains(k, "screenshots/2026-08/") {
+			foundScreenshot = true
+			if meta["status"] != "failed" {
+				t.Errorf("expected metadata status 'failed', got %q", meta["status"])
+			}
+			if meta["error_message"] != "mock submit error" {
+				t.Errorf("expected error_message 'mock submit error', got %q", meta["error_message"])
+			}
+			if meta["receipt_files"] != "receipt1.pdf" {
+				t.Errorf("expected receipt_files 'receipt1.pdf', got %q", meta["receipt_files"])
+			}
+		}
+	}
+	if !foundScreenshot {
+		t.Errorf("expected screenshot upload with metadata to be recorded in mockStore.UploadedMeta")
 	}
 }

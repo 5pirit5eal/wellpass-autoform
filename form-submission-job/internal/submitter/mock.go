@@ -14,7 +14,11 @@ type MockSubmitter struct {
 // Submit records the batch and returns a successful or failed result.
 func (m *MockSubmitter) Submit(ctx context.Context, batch SubmissionBatch) (*SubmissionResult, error) {
 	if m.ShouldFail {
-		return nil, fmt.Errorf("mock submit error")
+		return &SubmissionResult{
+			BatchID:     batch.BatchID,
+			Success:     false,
+			Screenshots: []string{"/tmp/mock_screenshot.png"},
+		}, fmt.Errorf("mock submit error")
 	}
 	m.SubmittedBatches = append(m.SubmittedBatches, batch)
 	return &SubmissionResult{

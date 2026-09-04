@@ -19,7 +19,8 @@ locals {
     "iamcredentials.googleapis.com",
     "cloudbuild.googleapis.com",
     "logging.googleapis.com",
-    "monitoring.googleapis.com"
+    "monitoring.googleapis.com",
+    "secretmanager.googleapis.com"
   ]
 }
 

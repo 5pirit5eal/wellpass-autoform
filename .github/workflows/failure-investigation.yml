@@ -1,0 +1,216 @@
+name: Cloud Run Job Failure Investigation
+
+on:
+  repository_dispatch:
+    types:
+      - cloud-run-job-failure
+      - form-submission-failed
+  workflow_dispatch:
+    inputs:
+      job_name:
+        description: "Cloud Run Job name that failed"
+        required: false
+        default: "form-submission-job"
+      failure_summary:
+        description: "Summary or error description of the failure"
+        required: false
+        default: "Manual investigation triggered for form-submission-job failure"
+      incident_id:
+        description: "Cloud Monitoring Incident ID (if available)"
+        required: false
+        default: ""
+
+concurrency:
+  group: failure-investigation
+  cancel-in-progress: false
+
+jobs:
+  investigate-and-fix:
+    name: OpenCode Autonomous Failure Investigation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "opencode[bot]"
+          git config --global user.email "opencode[bot]@users.noreply.github.com"
+
+      - name: Authenticate to Google Cloud via WIF
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: Install OpenCode CLI
+        run: |
+          echo "Installing OpenCode CLI..."
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Configure OpenCode for Vertex AI (eu)
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        run: |
+          mkdir -p ~/.config/opencode
+          cat <<EOF > ~/.config/opencode/opencode.json
+          {
+            "\$schema": "https://opencode.ai/config.json",
+            "provider": {
+              "google-vertex": {
+                "options": {
+                  "project": "${GCP_PROJECT_ID}",
+                  "location": "eu"
+                }
+              }
+            },
+            "permission": {
+              "*": "allow"
+            }
+          }
+          EOF
+          cat ~/.config/opencode/opencode.json
+
+      - name: Create Investigation Branch
+        id: branch
+        run: |
+          BRANCH_NAME="investigate/job-failure-${{ github.run_id }}"
+          echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+          git checkout -b "${BRANCH_NAME}"
+
+      - name: Run OpenCode Investigation Agent
+        id: opencode
+        env:
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          VERTEX_LOCATION: eu
+          GOOGLE_VERTEX_LOCATION: eu
+          GOOGLE_GENAI_USE_VERTEXAI: "true"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION }}
+          FAILED_BUCKET: ${{ vars.RECEIPTS_FAILED_BUCKET }}
+          JOB_NAME: ${{ github.event.client_payload.job_name || inputs.job_name || 'form-submission-job' }}
+          INCIDENT_ID: ${{ github.event.client_payload.incident_id || inputs.incident_id || 'manual' }}
+          SUMMARY: ${{ github.event.client_payload.summary || inputs.failure_summary || 'Job execution failure detected' }}
+          BRANCH_NAME: ${{ steps.branch.outputs.branch_name }}
+        run: |
+          echo "Starting OpenCode run with gemini-3.8-flash on high in eu..."
+
+          PROMPT="The Cloud Run Job '${JOB_NAME}' has failed.
+          Failure summary: ${SUMMARY}
+          Incident ID: ${INCIDENT_ID}
+          GCS Failed Bucket: ${FAILED_BUCKET}
+          GCP Project ID: ${PROJECT_ID}
+          Git Branch: ${BRANCH_NAME}
+
+          YOUR MISSION:
+          1. INVESTIGATE FAILURE DETAILS IN GCS OBJECT CUSTOM METADATA:
+             - Check Google Cloud Storage bucket 'gs://${FAILED_BUCKET}/screenshots/' and failed receipts using \`gcloud storage objects list --long \"gs://${FAILED_BUCKET}/screenshots/**\"\`.
+             - Read the custom metadata on recent screenshot objects using \`gcloud storage objects describe \"gs://${FAILED_BUCKET}/screenshots/<path>\" --format=\"json(metadata)\"\`.
+             - The custom metadata attached to the screenshot objects contains the failure diagnostics: \`metadata.error_message\`, \`metadata.status\`, \`metadata.batch_id\`, \`metadata.receipt_files\`, and \`metadata.failed_at\`.
+             - Download and inspect the relevant screenshot images (especially any error_*.png).
+          2. INSPECT CLOUD LOGGING:
+             - Fetch recent error logs: \`gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"${JOB_NAME}\"' --project=${PROJECT_ID} --limit=50 --format=\"table(timestamp,severity,textPayload)\"\`.
+          3. ANALYZE CODEBASE:
+             - Inspect the code in 'form-submission-job/' (especially internal/submitter/playwright.go, internal/processor/processor.go, internal/matcher/matcher.go, cmd/job/main.go).
+          4. FORMULATE AND VERIFY FIX:
+             - Determine the root cause (e.g. Typeform selector change, dropdown interaction error, date format mismatch, unhandled UI prompt, etc.).
+             - Edit the code to fix the issue.
+             - Verify the fix thoroughly by running \`cd form-submission-job && go test -v ./...\`.
+          5. COMMIT AND OPEN PULL REQUEST:
+             - If a fix is found and verified:
+               - Commit the changes to branch '${BRANCH_NAME}'.
+               - Push the branch to origin: \`git push -u origin ${BRANCH_NAME}\`.
+               - Open a Pull Request targeting 'main' with reviewer '5pirit5eal':
+                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5pirit5eal --title \"fix(job): resolve ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
+                 In the PR body, include: Root Cause Analysis, GCS Failure Evidence & Screenshots inspected, Fix Details, Verification Results.
+             - If a fix was NOT possible (e.g., CAPTCHA, 2FA required, missing banking/login credentials, upstream API deprecation):
+               - Document full diagnosis, investigated logs, and failed attempts in 'INVESTIGATION.md'.
+               - Commit 'INVESTIGATION.md' to '${BRANCH_NAME}'.
+               - Push to origin: \`git push -u origin ${BRANCH_NAME}\`.
+               - Still create the Pull Request with reviewer '5pirit5eal':
+                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5pirit5eal --title \"investigate(job): diagnosis for ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
+                 Explaining why automatic resolution was not possible and detailing recommended manual remediation."
+
+          echo "Running opencode..."
+          opencode run \
+            --model google-vertex/gemini-3.8-flash \
+            --variant high \
+            --auto \
+            "${PROMPT}"
+
+      - name: Failsafe PR Guard & Reviewer Assignment
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.branch.outputs.branch_name }}
+          JOB_NAME: ${{ github.event.client_payload.job_name || inputs.job_name || 'form-submission-job' }}
+          INCIDENT_ID: ${{ github.event.client_payload.incident_id || inputs.incident_id || 'manual' }}
+          SUMMARY: ${{ github.event.client_payload.summary || inputs.failure_summary || 'Job execution failure detected' }}
+        run: |
+          echo "Verifying Pull Request status for branch ${BRANCH_NAME}..."
+
+          # Check if uncommitted changes remain from opencode
+          if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
+            echo "Uncommitted changes detected. Committing..."
+            git add .
+            git commit -m "chore(investigation): automated findings and fixes by opencode" || true
+          fi
+
+          # Check if commits exist on the branch that need pushing
+          LOCAL_COMMITS=$(git rev-parse HEAD)
+          REMOTE_COMMITS=$(git rev-parse "origin/main")
+          if [ "$LOCAL_COMMITS" != "$REMOTE_COMMITS" ]; then
+            echo "Pushing branch ${BRANCH_NAME}..."
+            git push -u origin "${BRANCH_NAME}" --force || true
+          fi
+
+          # Check if a PR already exists for this branch
+          EXISTING_PR=$(gh pr list --head "${BRANCH_NAME}" --json number --jq '.[0].number' || echo "")
+
+          if [ -z "$EXISTING_PR" ] && [ "$LOCAL_COMMITS" != "$REMOTE_COMMITS" ]; then
+            echo "No existing PR found. Opening PR via gh CLI..."
+            PR_URL=$(gh pr create \
+              --base main \
+              --head "${BRANCH_NAME}" \
+              --reviewer "5pirit5eal" \
+              --title "fix/investigate(job): automated diagnosis for ${JOB_NAME} (${INCIDENT_ID})" \
+              --body "## Automated Cloud Run Job Failure Investigation
+
+          **Job Name:** \`${JOB_NAME}\`
+          **Incident ID:** \`${INCIDENT_ID}\`
+          **Trigger Summary:** ${SUMMARY}
+          **Investigated By:** OpenCode (\`gemini-3.8-flash\` on high in \`eu\`)
+
+          ---
+          ### Status
+          OpenCode ran an automated investigation into the failure of \`${JOB_NAME}\`. Please review the diff and findings.
+
+          **Assigned Reviewer:** @5pirit5eal")
+
+            echo "Created PR: $PR_URL"
+          elif [ -n "$EXISTING_PR" ]; then
+            echo "PR #${EXISTING_PR} already exists. Ensuring 5pirit5eal is requested as reviewer..."
+            gh pr edit "$EXISTING_PR" --add-reviewer "5pirit5eal" || true
+          else
+            echo "No changes or commits were produced for branch ${BRANCH_NAME}."
+          fi

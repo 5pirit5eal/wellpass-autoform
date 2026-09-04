@@ -62,3 +62,18 @@ output "workload_identity_provider" {
   description = "Full identifier of the Workload Identity Provider for GitHub Actions"
   value       = "${google_iam_workload_identity_pool.github_pool.name}/providers/${google_iam_workload_identity_pool_provider.github_provider.workload_identity_pool_provider_id}"
 }
+
+output "failure_dispatcher_service_account_email" {
+  description = "Email of the Failure Dispatcher Cloud Function service account"
+  value       = google_service_account.failure_dispatcher.email
+}
+
+output "job_failures_pubsub_topic" {
+  description = "Name of the Pub/Sub topic for Cloud Run Job failure alerts"
+  value       = google_pubsub_topic.job_failures.name
+}
+
+output "job_failure_alert_policy_id" {
+  description = "ID of the Cloud Monitoring Alert Policy for job failures"
+  value       = google_monitoring_alert_policy.job_failure.id
+}
