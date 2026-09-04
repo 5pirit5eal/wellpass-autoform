@@ -1,6 +1,6 @@
 module github.com/wellpass-autoform/failure-dispatcher
 
-go 1.23.0
+go 1.26.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.3
