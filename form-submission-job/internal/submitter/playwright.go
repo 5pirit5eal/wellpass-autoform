@@ -125,13 +125,16 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	time.Sleep(1 * time.Second)
 	takeScreenshot("01_welcome")
 
-	// Step 1: Welcome Screen -> Click "Beginnen"
-	startBtn := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Beginnen"}).Or(page.Locator("button:has-text('Beginnen')")).First()
+	// Step 1: Welcome Screen -> Click "Starten" or "Beginnen"
+	startBtn := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Starten"}).
+		Or(page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Beginnen"})).
+		Or(page.Locator("button:has-text('Starten')")).
+		Or(page.Locator("button:has-text('Beginnen')")).First()
 	if err := startBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
-		return failWithScreenshot("welcome_button", fmt.Errorf("welcome button 'Beginnen' not found: %w", err))
+		return failWithScreenshot("welcome_button", fmt.Errorf("welcome button ('Starten' / 'Beginnen') not found: %w", err))
 	}
 	if err := startBtn.Click(); err != nil {
-		return failWithScreenshot("welcome_click", fmt.Errorf("failed to click 'Beginnen': %w", err))
+		return failWithScreenshot("welcome_click", fmt.Errorf("failed to click welcome button: %w", err))
 	}
 
 	// Step 2: Notice Screen -> Click "Weiter"
@@ -429,14 +432,17 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 	// Step 8: Final Submission or Dry Run Protection
 	if batch.DryRun {
-		log.Printf("[%s] DRY_RUN is TRUE: Form filled successfully. Skipping click on 'Senden'.", batch.BatchID)
+		log.Printf("[%s] DRY_RUN is TRUE: Form filled successfully. Skipping click on submit button ('Einschicken' / 'Senden').", batch.BatchID)
 		result.Success = true
 		return result, nil
 	}
 
-	// Production: Click "Antworten übermitteln" / "Senden"
+	// Production: Click "Einschicken" / "Senden" / "Antworten übermitteln"
 	log.Printf("[%s] Submitting form...", batch.BatchID)
-	submitBtn := page.Locator("button:has-text('Senden'), button:has-text('Antworten übermitteln')").Last()
+	submitBtn := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Einschicken"}).
+		Or(page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Senden"})).
+		Or(page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Antworten übermitteln"})).
+		Or(page.Locator("button:has-text('Einschicken'), button:has-text('Senden'), button:has-text('Antworten übermitteln')")).Last()
 	if err := submitBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
 		return failWithScreenshot("submit_btn", fmt.Errorf("final submit button not found: %w", err))
 	}

@@ -25,6 +25,9 @@ func TestConfigLoad(t *testing.T) {
 	if cfg.SourceBucket != "test-bucket" {
 		t.Errorf("got SourceBucket %q, want %q", cfg.SourceBucket, "test-bucket")
 	}
+	if cfg.TypeformURL != "https://survey.egym.com/to/AwCQrDZ9" {
+		t.Errorf("got TypeformURL %q, want %q", cfg.TypeformURL, "https://survey.egym.com/to/AwCQrDZ9")
+	}
 	if cfg.Email != "test@example.com" {
 		t.Errorf("got Email %q, want %q", cfg.Email, "test@example.com")
 	}

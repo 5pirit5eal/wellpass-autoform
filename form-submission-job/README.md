@@ -27,7 +27,7 @@ Set the following variables in `.env` or container environment:
 | `PROJECT_ID` | Google Cloud Project ID | `your-project-id` |
 | `BIGQUERY_DATASET` | BigQuery dataset ID | `receipts_processing` |
 | `BIGQUERY_TABLE` | BigQuery table ID | `processing_results` |
-| `TYPEFORM_URL` | EGYM Wellpass Typeform URL | `https://egym.typeform.com/to/z5XBrNXf` |
+| `TYPEFORM_URL` | EGYM Wellpass Typeform URL | `https://survey.egym.com/to/AwCQrDZ9` |
 | `EMAIL` | EGYM Wellpass member email | `member@example.com` |
 | `FIRST_NAME` | Member first name | `Max` |
 | `LAST_NAME` | Member last name | `Mustermann` |
@@ -119,7 +119,7 @@ gcloud run jobs create form-submission-job \
   --cpu=1000m \
   --task-timeout=3600s \
   --max-retries=1 \
-  --set-env-vars="SOURCE_BUCKET=$PROJECT_ID-receipts-processed,SUBMITTED_BUCKET=$PROJECT_ID-receipts-submitted,FAILED_BUCKET=$PROJECT_ID-receipts-failed,PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=receipts_processing,BIGQUERY_TABLE=processing_results,TYPEFORM_URL=https://egym.typeform.com/to/z5XBrNXf,EMAIL=$EMAIL,FIRST_NAME=$FIRST_NAME,LAST_NAME=$LAST_NAME,IBAN=$IBAN,BIC=$BIC,DRY_RUN=true,HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
+  --set-env-vars="SOURCE_BUCKET=$PROJECT_ID-receipts-processed,SUBMITTED_BUCKET=$PROJECT_ID-receipts-submitted,FAILED_BUCKET=$PROJECT_ID-receipts-failed,PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=receipts_processing,BIGQUERY_TABLE=processing_results,TYPEFORM_URL=https://survey.egym.com/to/AwCQrDZ9,EMAIL=$EMAIL,FIRST_NAME=$FIRST_NAME,LAST_NAME=$LAST_NAME,IBAN=$IBAN,BIC=$BIC,DRY_RUN=true,HEADLESS=true,SCREENSHOTS_DIR=/tmp/form-submission-screenshots"
 
 # Deploy Cloud Scheduler Trigger
 gcloud scheduler jobs create http monthly-form-submission-trigger \

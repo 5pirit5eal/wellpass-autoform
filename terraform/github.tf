@@ -23,7 +23,7 @@ locals {
     FAILURE_DISPATCHER_SERVICE_ACCOUNT = google_service_account.failure_dispatcher.email
     JOB_FAILURES_PUBSUB_TOPIC          = google_pubsub_topic.job_failures.name
     ACTION_DISPATCH_SECRET_ID          = google_secret_manager_secret.github_dispatch_token.secret_id
-    WELLPASS_TYPEFORM_URL              = "https://egym.typeform.com/to/z5XBrNXf"
+    WELLPASS_TYPEFORM_URL              = "https://survey.egym.com/to/AwCQrDZ9"
     WELLPASS_EMAIL                     = var.wellpass_email
     WELLPASS_FIRST_NAME                = var.wellpass_first_name
     WELLPASS_LAST_NAME                 = var.wellpass_last_name

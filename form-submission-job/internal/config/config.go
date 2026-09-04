@@ -85,7 +85,7 @@ func Load() (*Config, error) {
 
 	typeformURL := strings.TrimSpace(os.Getenv("TYPEFORM_URL"))
 	if typeformURL == "" {
-		typeformURL = "https://egym.typeform.com/to/z5XBrNXf"
+		typeformURL = "https://survey.egym.com/to/AwCQrDZ9"
 	}
 
 	email := strings.TrimSpace(os.Getenv("EMAIL"))
