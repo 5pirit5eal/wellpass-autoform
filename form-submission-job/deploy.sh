@@ -26,11 +26,11 @@ if [[ -z "${PROJECT_ID}" ]]; then
   exit 1
 fi
 
-SOURCE_BUCKET="${SOURCE_BUCKET:-"${PROJECT_ID}-receipts-processed"}"
-SUBMITTED_BUCKET="${SUBMITTED_BUCKET:-"${PROJECT_ID}-receipts-submitted"}"
-FAILED_BUCKET="${FAILED_BUCKET:-"${PROJECT_ID}-receipts-failed"}"
-BIGQUERY_DATASET="${BIGQUERY_DATASET:-"${BIGQUERY_DATASET_ID:-"receipts_processing"}}"
-BIGQUERY_TABLE="${BIGQUERY_TABLE:-"${BIGQUERY_TABLE_ID:-"processing_results"}}"
+SOURCE_BUCKET="${SOURCE_BUCKET:-${PROJECT_ID}-receipts-processed}"
+SUBMITTED_BUCKET="${SUBMITTED_BUCKET:-${PROJECT_ID}-receipts-submitted}"
+FAILED_BUCKET="${FAILED_BUCKET:-${PROJECT_ID}-receipts-failed}"
+BIGQUERY_DATASET="${BIGQUERY_DATASET:-${BIGQUERY_DATASET_ID:-receipts_processing}}"
+BIGQUERY_TABLE="${BIGQUERY_TABLE:-${BIGQUERY_TABLE_ID:-processing_results}}"
 TYPEFORM_URL="${TYPEFORM_URL:-"https://egym.typeform.com/to/z5XBrNXf"}"
 EMAIL="${EMAIL:-""}"
 FIRST_NAME="${FIRST_NAME:-""}"
