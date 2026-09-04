@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - "terraform/**"
       - "receipts-function/**"
       - "form-submission-job/**"
       - "failure-dispatcher/**"
@@ -18,6 +19,7 @@ on:
         type: choice
         options:
           - all
+          - infra
           - receipts-function
           - form-submission-job
           - failure-dispatcher
@@ -27,11 +29,99 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-receipts-function:
-    name: Deploy receipts-function (Cloud Run Function)
+  deploy-infra:
+    name: Deploy Infrastructure (Terraform)
     if: |
       github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'receipts-function'))
+      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'infra'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Fetch GitHub PAT from Secret Manager
+        id: gh-token
+        run: |
+          TOKEN=$(gcloud secrets versions access latest --secret="${{ vars.ACTION_DISPATCH_SECRET_ID }}" --project="${{ vars.GCP_PROJECT_ID }}")
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Generate terraform.tfvars from repository variables
+        working-directory: terraform
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: ${{ vars.GCP_REGION || 'europe-west3' }}
+          GEMINI_LOCATION: ${{ vars.GEMINI_LOCATION || 'eu' }}
+          BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET || 'receipts_processing' }}
+          BIGQUERY_LOCATION: ${{ vars.BIGQUERY_LOCATION || vars.GCP_REGION || 'europe-west3' }}
+          ARTIFACT_REGISTRY_REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPOSITORY || 'golang' }}
+          GH_OWNER: ${{ vars.GH_OWNER || github.repository_owner }}
+          GH_REPOSITORY: ${{ vars.GH_REPOSITORY || github.event.repository.name }}
+          ENABLE_GITHUB_RESOURCES: ${{ vars.ENABLE_GITHUB_RESOURCES || 'true' }}
+          WELLPASS_EMAIL: ${{ vars.WELLPASS_EMAIL }}
+          WELLPASS_FIRST_NAME: ${{ vars.WELLPASS_FIRST_NAME }}
+          WELLPASS_LAST_NAME: ${{ vars.WELLPASS_LAST_NAME }}
+          WELLPASS_IBAN: ${{ vars.WELLPASS_IBAN || secrets.WELLPASS_IBAN }}
+          WELLPASS_BIC: ${{ vars.WELLPASS_BIC }}
+          SUBMISSION_DRY_RUN: ${{ vars.SUBMISSION_DRY_RUN || 'false' }}
+          SCHEDULER_CRON: ${{ vars.SCHEDULER_CRON || '0 8 2 * *' }}
+          SCHEDULER_TIME_ZONE: ${{ vars.SCHEDULER_TIME_ZONE || 'Europe/Berlin' }}
+        run: |
+          cat <<EOF > terraform.tfvars
+          project_id                = "${PROJECT_ID}"
+          region                    = "${REGION}"
+          gemini_location           = "${GEMINI_LOCATION}"
+          bigquery_dataset_id       = "${BIGQUERY_DATASET}"
+          bigquery_location         = "${BIGQUERY_LOCATION}"
+          artifact_registry_repo_id = "${ARTIFACT_REGISTRY_REPOSITORY}"
+          github_owner              = "${GH_OWNER}"
+          github_repository         = "${GH_REPOSITORY}"
+          enable_github_resources   = ${ENABLE_GITHUB_RESOURCES}
+          wellpass_email            = "${WELLPASS_EMAIL}"
+          wellpass_first_name       = "${WELLPASS_FIRST_NAME}"
+          wellpass_last_name        = "${WELLPASS_LAST_NAME}"
+          wellpass_iban             = "${WELLPASS_IBAN}"
+          wellpass_bic              = "${WELLPASS_BIC}"
+          submission_dry_run        = ${SUBMISSION_DRY_RUN}
+          scheduler_cron            = "${SCHEDULER_CRON}"
+          scheduler_time_zone       = "${SCHEDULER_TIME_ZONE}"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        env:
+          GITHUB_TOKEN: ${{ steps.gh-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: terraform apply -auto-approve -input=false
+
+  deploy-receipts-function:
+    name: Deploy receipts-function (Cloud Run Function)
+    needs: [deploy-infra]
+    if: |
+      always() &&
+      (needs.deploy-infra.result == 'success' || needs.deploy-infra.result == 'skipped') &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'receipts-function')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -69,9 +159,11 @@ jobs:
 
   deploy-form-submission-job:
     name: Deploy form-submission-job (Cloud Run Job & Scheduler)
+    needs: [deploy-infra]
     if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'form-submission-job'))
+      always() &&
+      (needs.deploy-infra.result == 'success' || needs.deploy-infra.result == 'skipped') &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'form-submission-job')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -114,9 +206,11 @@ jobs:
 
   deploy-failure-dispatcher:
     name: Deploy failure-dispatcher (Pub/Sub Cloud Run Function)
+    needs: [deploy-infra]
     if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'failure-dispatcher'))
+      always() &&
+      (needs.deploy-infra.result == 'success' || needs.deploy-infra.result == 'skipped') &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.service == 'all' || inputs.service == 'failure-dispatcher')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
