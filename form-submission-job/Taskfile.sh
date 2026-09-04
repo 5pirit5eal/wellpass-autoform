@@ -184,7 +184,7 @@ deploy-job() {
       --memory="2Gi" \
       --cpu="1000m" \
       --max-retries=1 \
-      --task-timeout="600s" \
+      --task-timeout="3600s" \
       --set-env-vars="${env_vars}"
   else
     gcloud run jobs create "${job_name}" \
@@ -195,7 +195,7 @@ deploy-job() {
       --memory="2Gi" \
       --cpu="1000m" \
       --max-retries=1 \
-      --task-timeout="600s" \
+      --task-timeout="3600s" \
       --set-env-vars="${env_vars}"
   fi
   echo "Cloud Run Job ${job_name} deployed successfully."
