@@ -167,35 +167,69 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 		// 1. Swimming Pool Dropdown
 		time.Sleep(1500 * time.Millisecond)
-		dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible, [data-qa*='dropdown']:visible").Last()
-		if count, _ := dropdownBtn.Count(); count == 0 {
-			dropdownBtn = page.GetByRole("button", playwright.PageGetByRoleOptions{
-				Name: "Option eingeben oder aussuchen",
-			}).Or(page.Locator("button:has-text('Option eingeben oder aussuchen')")).Last()
+
+		// Check if options are already displayed (e.g. dropdown auto-opened on question entry)
+		optionsLocator := page.Locator("[role='option']:visible")
+		optsCount, _ := optionsLocator.Count()
+
+		if optsCount == 0 {
+			dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible, [role='combobox']:visible").First()
+			if count, _ := dropdownBtn.Count(); count == 0 {
+				dropdownBtn = page.GetByRole("button", playwright.PageGetByRoleOptions{
+					Name: "Option eingeben oder aussuchen",
+				}).Or(page.Locator("button:has-text('Option eingeben oder aussuchen')")).First()
+			}
+
+			// Wait up to 10s for the trigger button, or check if options appeared
+			if err := dropdownBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
+				if c, _ := optionsLocator.Count(); c == 0 {
+					return failWithScreenshot(fmt.Sprintf("ticket_%d_dropdown_btn", ticketNum), fmt.Errorf("ticket %d: dropdown trigger button not found: %w", ticketNum, err))
+				}
+			}
+
+			if c, _ := optionsLocator.Count(); c == 0 {
+				if err := dropdownBtn.Click(playwright.LocatorClickOptions{
+					Force:   playwright.Bool(true),
+					Timeout: playwright.Float(10000),
+				}); err != nil {
+					return failWithScreenshot(fmt.Sprintf("ticket_%d_dropdown_click", ticketNum), fmt.Errorf("ticket %d: failed to click dropdown button: %w", ticketNum, err))
+				}
+			}
 		}
 
-		if err := dropdownBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_dropdown_btn", ticketNum), fmt.Errorf("ticket %d: dropdown trigger button not found: %w", ticketNum, err))
-		}
-		if err := dropdownBtn.Click(); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_dropdown_click", ticketNum), fmt.Errorf("ticket %d: failed to click dropdown button: %w", ticketNum, err))
-		}
-
-		time.Sleep(800 * time.Millisecond)
+		time.Sleep(600 * time.Millisecond)
 		searchTerm := extractSearchTerm(ticket.PoolLabel)
-		if err := page.Keyboard().Type(searchTerm); err != nil {
-			return failWithScreenshot(fmt.Sprintf("ticket_%d_search_type", ticketNum), fmt.Errorf("ticket %d: failed to type search term %q: %w", ticketNum, searchTerm, err))
+		searchInput := page.Locator("input[role='combobox']:visible, input[placeholder*='Option']:visible, input[placeholder*='aussuchen']:visible, [data-qa*='dropdown'] input:visible").First()
+		if count, _ := searchInput.Count(); count > 0 {
+			_ = searchInput.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+			_ = searchInput.Fill("")
+			if err := searchInput.PressSequentially(searchTerm, playwright.LocatorPressSequentiallyOptions{Delay: playwright.Float(40)}); err != nil {
+				_ = page.Keyboard().Type(searchTerm)
+			}
+		} else {
+			if err := page.Keyboard().Type(searchTerm); err != nil {
+				return failWithScreenshot(fmt.Sprintf("ticket_%d_search_type", ticketNum), fmt.Errorf("ticket %d: failed to type search term %q: %w", ticketNum, searchTerm, err))
+			}
 		}
 
 		time.Sleep(800 * time.Millisecond)
 		option := page.GetByRole("option", playwright.PageGetByRoleOptions{
 			Name: ticket.PoolLabel,
-		}).Or(page.GetByText(ticket.PoolLabel)).Or(page.Locator("[role='option']:visible")).First()
+		}).Or(page.Locator(fmt.Sprintf("[role='option']:has-text(%q):visible", ticket.PoolLabel))).Or(page.GetByText(ticket.PoolLabel)).First()
+
+		if count, _ := option.Count(); count == 0 {
+			option = page.Locator("[role='option']:visible").Filter(playwright.LocatorFilterOptions{
+				HasText: ticket.PoolLabel,
+			}).First()
+			if count, _ := option.Count(); count == 0 {
+				option = page.Locator("[role='option']:visible").First()
+			}
+		}
 
 		if err := option.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_pool_option", ticketNum), fmt.Errorf("ticket %d: option %q not found: %w", ticketNum, ticket.PoolLabel, err))
 		}
-		if err := option.Click(); err != nil {
+		if err := option.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)}); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_pool_click", ticketNum), fmt.Errorf("ticket %d: failed to click pool option %q: %w", ticketNum, ticket.PoolLabel, err))
 		}
 
@@ -293,6 +327,8 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		time.Sleep(500 * time.Millisecond)
 		_ = page.Keyboard().Press("Enter")
 
+		takeScreenshot(fmt.Sprintf("03_ticket_%d_done", ticketNum))
+
 		// 5. More tickets prompt? (Only relevant if not the 10th ticket)
 		if ticketNum < 10 {
 			hasMore := (i < len(batch.Tickets) - 1)
@@ -332,8 +368,6 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 				}
 			}
 		}
-
-		takeScreenshot(fmt.Sprintf("03_ticket_%d_done", ticketNum))
 	}
 
 	// Step 4: Personal Information (Vor- und Nachname)
