@@ -48,14 +48,14 @@ resource "google_monitoring_alert_policy" "job_failure" {
     display_name = "Cloud Run Job Failed Execution Count > 0"
 
     condition_threshold {
-      filter          = "resource.type = \"cloud_run_job\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.status = \"failed\" AND resource.labels.job_name = \"form-submission-job\""
+      filter          = "resource.type = \"cloud_run_job\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\" AND resource.labels.job_name = \"form-submission-job\""
       duration        = "0s"
       comparison      = "COMPARISON_GT"
       threshold_value = 0
 
       aggregations {
         alignment_period     = "60s"
-        per_series_aligner   = "ALIGN_DELTA"
+        per_series_aligner   = "ALIGN_SUM"
         cross_series_reducer = "REDUCE_SUM"
         group_by_fields      = ["resource.label.job_name"]
       }
