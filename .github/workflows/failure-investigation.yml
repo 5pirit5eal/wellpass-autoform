@@ -140,15 +140,15 @@ jobs:
              - If a fix is found and verified:
                - Commit the changes to branch '${BRANCH_NAME}'.
                - Push the branch to origin: \`git push -u origin ${BRANCH_NAME}\`.
-               - Open a Pull Request targeting 'main' with reviewer '5prit5eal':
-                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5prit5eal --title \"fix(job): resolve ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
+               - Open a Pull Request targeting 'main' with reviewer '5pirit5eal':
+                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5pirit5eal --title \"fix(job): resolve ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
                  In the PR body, include: Root Cause Analysis, GCS Failure Evidence & Screenshots inspected, Fix Details, Verification Results.
              - If a fix was NOT possible (e.g., CAPTCHA, 2FA required, missing banking/login credentials, upstream API deprecation):
                - Document full diagnosis, investigated logs, and failed attempts in 'INVESTIGATION.md'.
                - Commit 'INVESTIGATION.md' to '${BRANCH_NAME}'.
                - Push to origin: \`git push -u origin ${BRANCH_NAME}\`.
-               - Still create the Pull Request with reviewer '5prit5eal':
-                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5prit5eal --title \"investigate(job): diagnosis for ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
+               - Still create the Pull Request with reviewer '5pirit5eal':
+                 \`gh pr create --base main --head \"${BRANCH_NAME}\" --reviewer 5pirit5eal --title \"investigate(job): diagnosis for ${JOB_NAME} failure (${INCIDENT_ID})\" --body \"...\"\`
                  Explaining why automatic resolution was not possible and detailing recommended manual remediation."
 
           echo "Running opencode..."
@@ -192,7 +192,7 @@ jobs:
             PR_URL=$(gh pr create \
               --base main \
               --head "${BRANCH_NAME}" \
-              --reviewer "5prit5eal" \
+              --reviewer "5pirit5eal" \
               --title "fix/investigate(job): automated diagnosis for ${JOB_NAME} (${INCIDENT_ID})" \
               --body "## Automated Cloud Run Job Failure Investigation
 
@@ -205,12 +205,12 @@ jobs:
           ### Status
           OpenCode ran an automated investigation into the failure of \`${JOB_NAME}\`. Please review the diff and findings.
 
-          **Assigned Reviewer:** @5prit5eal")
+          **Assigned Reviewer:** @5pirit5eal")
 
             echo "Created PR: $PR_URL"
           elif [ -n "$EXISTING_PR" ]; then
-            echo "PR #${EXISTING_PR} already exists. Ensuring 5prit5eal is requested as reviewer..."
-            gh pr edit "$EXISTING_PR" --add-reviewer "5prit5eal" || true
+            echo "PR #${EXISTING_PR} already exists. Ensuring 5pirit5eal is requested as reviewer..."
+            gh pr edit "$EXISTING_PR" --add-reviewer "5pirit5eal" || true
           else
             echo "No changes or commits were produced for branch ${BRANCH_NAME}."
           fi
