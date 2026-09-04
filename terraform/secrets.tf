@@ -15,13 +15,6 @@ resource "google_secret_manager_secret" "github_dispatch_token" {
   depends_on = [google_project_service.apis]
 }
 
-# Optional secret version if provided via Terraform variable
-resource "google_secret_manager_secret_version" "github_dispatch_token" {
-  count       = var.github_dispatch_token != "" ? 1 : 0
-  secret      = google_secret_manager_secret.github_dispatch_token.id
-  secret_data = var.github_dispatch_token
-}
-
 # Grant access to Failure Dispatcher Cloud Function service account
 resource "google_secret_manager_secret_iam_member" "failure_dispatcher_token_accessor" {
   secret_id = google_secret_manager_secret.github_dispatch_token.secret_id

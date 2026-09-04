@@ -132,10 +132,3 @@ variable "scheduler_time_zone" {
   type        = string
   default     = "Europe/Berlin"
 }
-
-variable "github_dispatch_token" {
-  description = "GitHub Personal Access Token (PAT with actions:write or repo scope) used by GCP to trigger repository_dispatch workflows"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
