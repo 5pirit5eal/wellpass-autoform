@@ -51,7 +51,7 @@ func initializeDependencies(ctx context.Context) error {
 			repo = "wellpass-autoform"
 		}
 
-		secretID := os.Getenv("GITHUB_DISPATCH_SECRET_ID")
+		secretID := os.Getenv("ACTION_DISPATCH_SECRET_ID")
 		if secretID == "" {
 			secretID = "github-dispatch-token"
 		}

@@ -144,6 +144,6 @@ jobs:
           FAILURE_DISPATCHER_SERVICE_ACCOUNT: ${{ vars.FAILURE_DISPATCHER_SERVICE_ACCOUNT }}
           GITHUB_OWNER: "5pirit5eal"
           GITHUB_REPOSITORY: "wellpass-autoform"
-          GITHUB_DISPATCH_SECRET_ID: ${{ vars.GITHUB_DISPATCH_SECRET_ID }}
+          ACTION_DISPATCH_SECRET_ID: ${{ vars.ACTION_DISPATCH_SECRET_ID }}
         run: |
           ./Taskfile.sh deploy
