@@ -125,13 +125,13 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	time.Sleep(1 * time.Second)
 	takeScreenshot("01_welcome")
 
-	// Step 1: Welcome Screen -> Click "Starten"
-	startBtn := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Starten"}).Or(page.Locator("button:has-text('Starten')")).First()
+	// Step 1: Welcome Screen -> Click "Beginnen"
+	startBtn := page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Beginnen"}).Or(page.Locator("button:has-text('Beginnen')")).First()
 	if err := startBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
-		return failWithScreenshot("welcome_button", fmt.Errorf("welcome button 'Starten' not found: %w", err))
+		return failWithScreenshot("welcome_button", fmt.Errorf("welcome button 'Beginnen' not found: %w", err))
 	}
 	if err := startBtn.Click(); err != nil {
-		return failWithScreenshot("welcome_click", fmt.Errorf("failed to click 'Starten': %w", err))
+		return failWithScreenshot("welcome_click", fmt.Errorf("failed to click 'Beginnen': %w", err))
 	}
 
 	// Step 2: Notice Screen -> Click "Weiter"

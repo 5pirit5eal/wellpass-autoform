@@ -18,6 +18,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 10
 
+  - package-ecosystem: "gomod"
+    directory: "/failure-dispatcher"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "docker"
     directory: "/form-submission-job"
     schedule:
