@@ -213,6 +213,13 @@ When `enable_github_resources = true`, the following repository variables and se
    terraform output
    ```
 
+### Automated CI/CD Deployment
+
+Infrastructure deployment is automated via the GitHub Actions `.github/workflows/deploy.yml` workflow (`deploy-infra` job):
+- Automatically triggers on pushes to `main` impacting `terraform/**` or manually via `workflow_dispatch`.
+- Generates `terraform.tfvars` dynamically from GitHub repository variables and secrets.
+- Provisions and reconciles infrastructure before dependent Cloud Run functions and jobs are deployed.
+
 ---
 
 ## Service Deployment (via `gcloud` / Taskfiles)
