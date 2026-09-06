@@ -201,6 +201,8 @@ jobs:
           IBAN: ${{ secrets.WELLPASS_IBAN }}
           BIC: ${{ vars.WELLPASS_BIC }}
           DRY_RUN: ${{ vars.SUBMISSION_DRY_RUN }}
+          CRON_SCHEDULE: ${{ vars.SCHEDULER_CRON }}
+          TIME_ZONE: ${{ vars.SCHEDULER_TIME_ZONE }}
         run: |
           ./Taskfile.sh deploy
 
@@ -236,8 +238,8 @@ jobs:
           REGION: ${{ vars.GCP_REGION }}
           PUBSUB_TOPIC: ${{ vars.JOB_FAILURES_PUBSUB_TOPIC }}
           FAILURE_DISPATCHER_SERVICE_ACCOUNT: ${{ vars.FAILURE_DISPATCHER_SERVICE_ACCOUNT }}
-          GITHUB_OWNER: "5pirit5eal"
-          GITHUB_REPOSITORY: "wellpass-autoform"
+          GITHUB_OWNER: ${{ vars.GH_OWNER || '5pirit5eal' }}
+          GITHUB_REPOSITORY: ${{ vars.GH_REPOSITORY || 'wellpass-autoform' }}
           ACTION_DISPATCH_SECRET_ID: ${{ vars.ACTION_DISPATCH_SECRET_ID }}
         run: |
           ./Taskfile.sh deploy
