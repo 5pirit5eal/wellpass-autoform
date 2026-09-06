@@ -135,6 +135,18 @@ resource "google_project_iam_member" "github_actions_act_as_compute_sa" {
 }
 
 # Grant CI/CD deployment permissions to github-actions-sa
+resource "google_project_iam_member" "github_actions_editor" {
+  project = var.project_id
+  role    = "roles/editor"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
+resource "google_project_iam_member" "github_actions_project_iam_admin" {
+  project = var.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 resource "google_project_iam_member" "github_actions_cf_developer" {
   project = var.project_id
   role    = "roles/cloudfunctions.developer"

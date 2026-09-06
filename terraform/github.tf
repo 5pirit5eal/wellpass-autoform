@@ -18,6 +18,7 @@ locals {
     ARTIFACT_REGISTRY_REPOSITORY       = google_artifact_registry_repository.receipts.name
     BIGQUERY_DATASET                   = google_bigquery_dataset.receipts.dataset_id
     BIGQUERY_TABLE                     = google_bigquery_table.processing_results.table_id
+    BIGQUERY_LOCATION                  = local.bq_location
     GDRIVE_UPLOADER_SERVICE_ACCOUNT    = google_service_account.gdrive_uploader.email
     SUBMISSION_JOB_SERVICE_ACCOUNT     = google_service_account.form_submission_job.email
     FAILURE_DISPATCHER_SERVICE_ACCOUNT = google_service_account.failure_dispatcher.email
@@ -29,6 +30,11 @@ locals {
     WELLPASS_LAST_NAME                 = var.wellpass_last_name
     WELLPASS_BIC                       = var.wellpass_bic
     SUBMISSION_DRY_RUN                 = tostring(var.submission_dry_run)
+    SCHEDULER_CRON                     = var.scheduler_cron
+    SCHEDULER_TIME_ZONE                = var.scheduler_time_zone
+    GH_OWNER                           = var.github_owner
+    GH_REPOSITORY                      = var.github_repository
+    ENABLE_GITHUB_RESOURCES            = tostring(var.enable_github_resources)
   }
 }
 
