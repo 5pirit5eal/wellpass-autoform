@@ -28,7 +28,6 @@ locals {
     WELLPASS_EMAIL                     = var.wellpass_email
     WELLPASS_FIRST_NAME                = var.wellpass_first_name
     WELLPASS_LAST_NAME                 = var.wellpass_last_name
-    WELLPASS_IBAN                      = var.wellpass_iban
     WELLPASS_BIC                       = var.wellpass_bic
     SUBMISSION_DRY_RUN                 = tostring(var.submission_dry_run)
     SCHEDULER_CRON                     = var.scheduler_cron

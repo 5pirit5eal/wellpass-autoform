@@ -79,7 +79,7 @@ jobs:
           WELLPASS_EMAIL: ${{ vars.WELLPASS_EMAIL }}
           WELLPASS_FIRST_NAME: ${{ vars.WELLPASS_FIRST_NAME }}
           WELLPASS_LAST_NAME: ${{ vars.WELLPASS_LAST_NAME }}
-          WELLPASS_IBAN: ${{ vars.WELLPASS_IBAN || secrets.WELLPASS_IBAN }}
+          WELLPASS_IBAN: ${{ secrets.WELLPASS_IBAN }}
           WELLPASS_BIC: ${{ vars.WELLPASS_BIC }}
           SUBMISSION_DRY_RUN: ${{ vars.SUBMISSION_DRY_RUN || 'false' }}
           SCHEDULER_CRON: ${{ vars.SCHEDULER_CRON || '0 8 2 * *' }}
