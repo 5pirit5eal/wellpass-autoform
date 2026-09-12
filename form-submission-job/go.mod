@@ -3,7 +3,7 @@ module github.com/wellpass-autoform/form-submission-job
 go 1.26.3
 
 require (
-	cloud.google.com/go/bigquery v1.82.0
+	cloud.google.com/go/bigquery v1.83.0
 	cloud.google.com/go/storage v1.66.0
 	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.5001.0
