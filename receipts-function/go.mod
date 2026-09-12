@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	cloud.google.com/go v0.123.0
 	cloud.google.com/go/bigquery v1.82.0
-	cloud.google.com/go/storage v1.66.0
+	cloud.google.com/go/storage v1.67.1
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	google.golang.org/genai v1.71.0
