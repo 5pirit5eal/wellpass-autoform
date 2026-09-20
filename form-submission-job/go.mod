@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/storage v1.66.0
 	github.com/joho/godotenv v1.5.1
 	github.com/playwright-community/playwright-go v0.5001.0
-	google.golang.org/api v0.297.0
+	google.golang.org/api v0.298.0
 )
 
 require (
