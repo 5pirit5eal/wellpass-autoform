@@ -176,11 +176,14 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		optsCount, _ := optionsLocator.Count()
 
 		if optsCount == 0 {
-			dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible, [role='combobox']:visible").First()
+			dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible").Last()
+			if count, _ := dropdownBtn.Count(); count == 0 {
+				dropdownBtn = page.Locator("[role='combobox']:visible").Last()
+			}
 			if count, _ := dropdownBtn.Count(); count == 0 {
 				dropdownBtn = page.GetByRole("button", playwright.PageGetByRoleOptions{
 					Name: "Option eingeben oder aussuchen",
-				}).Or(page.Locator("button:has-text('Option eingeben oder aussuchen')")).First()
+				}).Or(page.Locator("button:has-text('Option eingeben oder aussuchen')")).Last()
 			}
 
 			// Wait up to 10s for the trigger button, or check if options appeared
@@ -202,7 +205,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 		time.Sleep(600 * time.Millisecond)
 		searchTerm := extractSearchTerm(ticket.PoolLabel)
-		searchInput := page.Locator("input[role='combobox']:visible, input[placeholder*='Option']:visible, input[placeholder*='aussuchen']:visible, [data-qa*='dropdown'] input:visible").First()
+		searchInput := page.Locator("input[role='combobox']:visible, input[placeholder*='Option']:visible, input[placeholder*='aussuchen']:visible, [data-qa*='dropdown'] input:visible").Last()
 		if count, _ := searchInput.Count(); count > 0 {
 			_ = searchInput.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 			_ = searchInput.Fill("")
@@ -337,37 +340,97 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 			hasMore := (i < len(batch.Tickets) - 1)
 			time.Sleep(1000 * time.Millisecond)
 
-			if hasMore {
-				jaChoice := page.Locator("[role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible, [data-qa*='choice-1']:visible").First()
-				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err == nil {
-					_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-				} else {
-					_ = page.Keyboard().Press("a")
-					time.Sleep(200 * time.Millisecond)
-					_ = page.Keyboard().Press("y")
-					time.Sleep(200 * time.Millisecond)
-					_ = page.Keyboard().Press("j")
+			// Wait for the "more tickets" question to become visible
+			promptLocator := page.Locator("text=Willst du noch einen weiteren Rechnungsbeleg hochladen").Last()
+			if err := promptLocator.WaitFor(playwright.LocatorWaitForOptions{
+				Timeout: playwright.Float(10000),
+				State:   playwright.WaitForSelectorStateVisible,
+			}); err != nil {
+				// Retry advancing from upload screen if prompt has not appeared yet
+				if count, _ := okUploadBtn.Count(); count > 0 {
+					_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				}
+				_ = page.Keyboard().Press("Enter")
+				_ = promptLocator.WaitFor(playwright.LocatorWaitForOptions{
+					Timeout: playwright.Float(10000),
+					State:   playwright.WaitForSelectorStateVisible,
+				})
+			}
+
+			if hasMore {
+				jaChoice := page.Locator("[role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible").Last()
+				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{
+					Timeout: playwright.Float(10000),
+					State:   playwright.WaitForSelectorStateVisible,
+				}); err == nil {
+					_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+				}
+				// Also press hotkey shortcuts supported by Typeform
+				_ = page.Keyboard().Press("j")
+				_ = page.Keyboard().Press("y")
+				_ = page.Keyboard().Press("a")
+
 				time.Sleep(500 * time.Millisecond)
 				_ = page.Keyboard().Press("Enter")
 				okBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
 				if count, _ := okBtn.Count(); count > 0 {
 					_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+				}
+
+				// Verify transition away from prompt to the next ticket's dropdown/question
+				nextQuestionLocator := page.Locator("text=Wähle das Schwimmbad aus, button:has-text('Option eingeben oder aussuchen')").Last()
+				for attempt := 0; attempt < 3; attempt++ {
+					if err := nextQuestionLocator.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						break
+					}
+					// If prompt is still active, retry selection
+					if c, _ := jaChoice.Count(); c > 0 {
+						_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
+					_ = page.Keyboard().Press("j")
+					_ = page.Keyboard().Press("Enter")
+					if count, _ := okBtn.Count(); count > 0 {
+						_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 				}
 			} else {
-				neinChoice := page.Locator("[role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible, [data-qa*='choice-2']:visible").First()
-				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err == nil {
+				neinChoice := page.Locator("[role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible").Last()
+				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{
+					Timeout: playwright.Float(10000),
+					State:   playwright.WaitForSelectorStateVisible,
+				}); err == nil {
 					_ = neinChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-				} else {
-					_ = page.Keyboard().Press("b")
-					time.Sleep(200 * time.Millisecond)
-					_ = page.Keyboard().Press("n")
 				}
+				_ = page.Keyboard().Press("n")
+				_ = page.Keyboard().Press("b")
+
 				time.Sleep(500 * time.Millisecond)
 				_ = page.Keyboard().Press("Enter")
 				okBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
 				if count, _ := okBtn.Count(); count > 0 {
 					_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+				}
+
+				// Verify transition away from prompt to personal info
+				nextQuestionLocator := page.Locator("text=Vor- und Nachname, input:not([type='file']):not([type='radio']):not([type='checkbox'])").Last()
+				for attempt := 0; attempt < 3; attempt++ {
+					if err := nextQuestionLocator.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						break
+					}
+					if c, _ := neinChoice.Count(); c > 0 {
+						_ = neinChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
+					_ = page.Keyboard().Press("n")
+					_ = page.Keyboard().Press("Enter")
+					if count, _ := okBtn.Count(); count > 0 {
+						_ = okBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 				}
 			}
 		}
@@ -420,7 +483,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 	// Step 7: Confirmation / Declaration Checkbox/Radio
 	time.Sleep(1500 * time.Millisecond)
-	declarationRadio := page.Locator("[role='radio']:visible, [role='checkbox']:visible").First()
+	declarationRadio := page.Locator("[role='radio']:visible, [role='checkbox']:visible").Last()
 	if err := declarationRadio.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err == nil {
 		_ = declarationRadio.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 	} else {
