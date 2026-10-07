@@ -171,12 +171,22 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		// 1. Swimming Pool Dropdown
 		time.Sleep(1500 * time.Millisecond)
 
+		// Ensure active question is the swimming pool block
+		poolBlock := page.Locator("[data-qa-focused='true'], [data-qa-block='true']:has-text('Schwimmbad')").Last()
+		_ = poolBlock.WaitFor(playwright.LocatorWaitForOptions{
+			Timeout: playwright.Float(10000),
+			State:   playwright.WaitForSelectorStateVisible,
+		})
+
 		// Check if options are already displayed (e.g. dropdown auto-opened on question entry)
 		optionsLocator := page.Locator("[role='option']:visible")
 		optsCount, _ := optionsLocator.Count()
 
 		if optsCount == 0 {
-			dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible").Last()
+			dropdownBtn := poolBlock.Locator("button:has-text('Option eingeben oder aussuchen'), [data-qa='combobox-trigger'], [role='combobox']").First()
+			if count, _ := dropdownBtn.Count(); count == 0 {
+				dropdownBtn = page.Locator("button:has-text('Option eingeben oder aussuchen'):visible").Last()
+			}
 			if count, _ := dropdownBtn.Count(); count == 0 {
 				dropdownBtn = page.Locator("[role='combobox']:visible").Last()
 			}
@@ -208,9 +218,10 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		searchInput := page.Locator("input[role='combobox']:visible, input[placeholder*='Option']:visible, input[placeholder*='aussuchen']:visible, [data-qa*='dropdown'] input:visible").Last()
 		if count, _ := searchInput.Count(); count > 0 {
 			_ = searchInput.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-			_ = searchInput.Fill("")
-			if err := searchInput.PressSequentially(searchTerm, playwright.LocatorPressSequentiallyOptions{Delay: playwright.Float(40)}); err != nil {
-				_ = page.Keyboard().Type(searchTerm)
+			if err := searchInput.Fill(searchTerm); err != nil {
+				if seqErr := searchInput.PressSequentially(searchTerm, playwright.LocatorPressSequentiallyOptions{Delay: playwright.Float(40)}); seqErr != nil {
+					_ = page.Keyboard().Type(searchTerm)
+				}
 			}
 		} else {
 			if err := page.Keyboard().Type(searchTerm); err != nil {
@@ -323,9 +334,13 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 		// Wait for upload confirmation and click visible Ok button
 		time.Sleep(2000 * time.Millisecond)
-		okUploadBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible, button:visible").Filter(playwright.LocatorFilterOptions{
-			HasText: "Ok",
-		}).Last()
+		uploadBlock := page.Locator("[data-qa*='blocktype-file_upload'], [data-qa-block='true']:has(input[type='file'])").Last()
+		okUploadBtn := uploadBlock.Locator("button:has-text('Ok'), [data-qa*='ok-button']").First()
+		if count, _ := okUploadBtn.Count(); count == 0 {
+			okUploadBtn = page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible, button:visible").Filter(playwright.LocatorFilterOptions{
+				HasText: "Ok",
+			}).Last()
+		}
 
 		if err := okUploadBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(20000)}); err == nil {
 			_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
@@ -340,9 +355,9 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 			hasMore := (i < len(batch.Tickets) - 1)
 			time.Sleep(1000 * time.Millisecond)
 
-			// Wait for the "more tickets" question to become visible
-			promptLocator := page.Locator("text=Willst du noch einen weiteren Rechnungsbeleg hochladen").Last()
-			if err := promptLocator.WaitFor(playwright.LocatorWaitForOptions{
+			// Wait for the "more tickets" question block to become visible
+			promptBlock := page.Locator("[data-qa-block='true']:has-text('Willst du noch einen weiteren Rechnungsbeleg hochladen')").Last()
+			if err := promptBlock.WaitFor(playwright.LocatorWaitForOptions{
 				Timeout: playwright.Float(10000),
 				State:   playwright.WaitForSelectorStateVisible,
 			}); err != nil {
@@ -351,55 +366,90 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 					_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				}
 				_ = page.Keyboard().Press("Enter")
-				_ = promptLocator.WaitFor(playwright.LocatorWaitForOptions{
+				_ = promptBlock.WaitFor(playwright.LocatorWaitForOptions{
 					Timeout: playwright.Float(10000),
 					State:   playwright.WaitForSelectorStateVisible,
 				})
 			}
 
+			promptOkBtn := promptBlock.Locator("button:has-text('Ok'), [data-qa*='ok-button']").First()
+
 			if hasMore {
-				jaChoice := page.Locator("button[value$='-yes'], [role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible").Last()
-				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err == nil {
-					_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-				} else {
+				jaChoice := promptBlock.Locator("button[value$='-yes'], [role='radio']:has-text('Ja'), button:has-text('Ja')").First()
+				if count, _ := jaChoice.Count(); count == 0 {
+					jaChoice = page.Locator("button[value$='-yes']:visible, [role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible").Last()
+				}
+
+				nextPoolFocused := page.Locator("[data-qa-focused='true']:has-text('Schwimmbad'), [data-qa-focused='true']:has-text('Wähle das Schwimmbad aus')")
+
+				for attempt := 0; attempt < 4; attempt++ {
+					if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						_ = jaChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 					_ = page.Keyboard().Press("j")
-				}
 
-				time.Sleep(800 * time.Millisecond)
-
-				// Verify transition away from prompt to the next ticket's dropdown/question
-				nextDropdownLocator := page.Locator("[data-qa*='blocktype']:has-text('Schwimmbad'), button:has-text('Option eingeben oder aussuchen'), [role='combobox']").Last()
-				if err := nextDropdownLocator.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err != nil {
+					time.Sleep(300 * time.Millisecond)
+					if c, _ := promptOkBtn.Count(); c > 0 {
+						if vis, _ := promptOkBtn.IsVisible(); vis {
+							_ = promptOkBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+						}
+					}
 					_ = page.Keyboard().Press("Enter")
+
+					if err := nextPoolFocused.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						break
+					}
+
+					isPromptFocused, _ := promptBlock.GetAttribute("data-qa-focused")
+					if isPromptFocused == "false" {
+						break
+					}
 				}
+				time.Sleep(500 * time.Millisecond)
 			} else {
-				neinChoice := page.Locator("button[value$='-no'], [role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible").Last()
-				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err == nil {
-					_ = neinChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-				} else {
+				neinChoice := promptBlock.Locator("button[value$='-no'], [role='radio']:has-text('Nein'), button:has-text('Nein')").First()
+				if count, _ := neinChoice.Count(); count == 0 {
+					neinChoice = page.Locator("button[value$='-no']:visible, [role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible").Last()
+				}
+
+				nameBlockFocused := page.Locator("[data-qa-focused='true']:has-text('Vor- und Nachname')")
+
+				for attempt := 0; attempt < 4; attempt++ {
+					if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						_ = neinChoice.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 					_ = page.Keyboard().Press("n")
-				}
 
-				time.Sleep(800 * time.Millisecond)
-
-				// Verify transition away from prompt to personal info (Vor- und Nachname)
-				nameBlock := page.Locator("[data-qa*='blocktype']:has-text('Vor- und Nachname'), div:has-text('Vor- und Nachname')").First()
-				if err := nameBlock.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err != nil {
-					// Fallback if needed
+					time.Sleep(300 * time.Millisecond)
+					if c, _ := promptOkBtn.Count(); c > 0 {
+						if vis, _ := promptOkBtn.IsVisible(); vis {
+							_ = promptOkBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+						}
+					}
 					_ = page.Keyboard().Press("Enter")
+
+					if err := nameBlockFocused.WaitFor(playwright.LocatorWaitForOptions{
+						Timeout: playwright.Float(3000),
+						State:   playwright.WaitForSelectorStateVisible,
+					}); err == nil {
+						break
+					}
+
+					isPromptFocused, _ := promptBlock.GetAttribute("data-qa-focused")
+					if isPromptFocused == "false" {
+						break
+					}
 				}
+				time.Sleep(500 * time.Millisecond)
 			}
 		}
 	}
