@@ -148,15 +148,26 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	}
 
 	// Step 3: Member Email Address
-	time.Sleep(1000 * time.Millisecond)
-	emailInput := page.Locator("input[type='email'], input[placeholder*='@']").First()
+	if err := waitForFocusedBlockContains(page, "E-Mail", 15000); err != nil {
+		time.Sleep(1000 * time.Millisecond)
+	}
+	emailBlock := page.Locator("[data-qa-focused='true']").First()
+	emailInput := emailBlock.Locator("input[type='email'], input[placeholder*='@'], input").First()
+	if count, _ := emailInput.Count(); count == 0 {
+		emailInput = page.Locator("input[type='email'], input[placeholder*='@']").First()
+	}
 	if err := emailInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
 		return failWithScreenshot("email_input", fmt.Errorf("email input not found: %w", err))
 	}
 	if err := emailInput.Fill(batch.Email); err != nil {
 		return failWithScreenshot("email_fill", fmt.Errorf("failed to fill email: %w", err))
 	}
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
+	okEmailBtn := emailBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+	if count, _ := okEmailBtn.Count(); count > 0 {
+		_ = okEmailBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+	}
+	time.Sleep(200 * time.Millisecond)
 	if err := page.Keyboard().Press("Enter"); err != nil {
 		return failWithScreenshot("email_submit", fmt.Errorf("failed to submit email: %w", err))
 	}
@@ -169,21 +180,19 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 			batch.BatchID, ticketNum, len(batch.Tickets), ticket.PoolLabel, ticket.Day, ticket.Month, ticket.Year, ticket.Price)
 
 		// 1. Swimming Pool Dropdown
-		time.Sleep(1500 * time.Millisecond)
+		if err := waitForFocusedBlockContains(page, "Schwimmbad", 15000); err != nil {
+			time.Sleep(1500 * time.Millisecond)
+		}
+		poolBlock := page.Locator("[data-qa-focused='true']").First()
 
 		// Check if options are already displayed (e.g. dropdown auto-opened on question entry)
 		optionsLocator := page.Locator("[role='option']:visible")
 		optsCount, _ := optionsLocator.Count()
 
 		if optsCount == 0 {
-			dropdownBtn := page.Locator("button:has-text('Option eingeben oder aussuchen'):visible").Last()
+			dropdownBtn := poolBlock.Locator("button:has-text('Option eingeben oder aussuchen'), [role='combobox'], [data-qa*='combobox-trigger']").First()
 			if count, _ := dropdownBtn.Count(); count == 0 {
-				dropdownBtn = page.Locator("[role='combobox']:visible").Last()
-			}
-			if count, _ := dropdownBtn.Count(); count == 0 {
-				dropdownBtn = page.GetByRole("button", playwright.PageGetByRoleOptions{
-					Name: "Option eingeben oder aussuchen",
-				}).Or(page.Locator("button:has-text('Option eingeben oder aussuchen')")).Last()
+				dropdownBtn = page.Locator("button:has-text('Option eingeben oder aussuchen'):visible, [role='combobox']:visible").Last()
 			}
 
 			// Wait up to 10s for the trigger button, or check if options appeared
@@ -208,9 +217,10 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		searchInput := page.Locator("input[role='combobox']:visible, input[placeholder*='Option']:visible, input[placeholder*='aussuchen']:visible, [data-qa*='dropdown'] input:visible").Last()
 		if count, _ := searchInput.Count(); count > 0 {
 			_ = searchInput.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-			_ = searchInput.Fill("")
-			if err := searchInput.PressSequentially(searchTerm, playwright.LocatorPressSequentiallyOptions{Delay: playwright.Float(40)}); err != nil {
-				_ = page.Keyboard().Type(searchTerm)
+			if err := searchInput.Fill(searchTerm); err != nil {
+				if seqErr := searchInput.PressSequentially(searchTerm, playwright.LocatorPressSequentiallyOptions{Delay: playwright.Float(40)}); seqErr != nil {
+					_ = page.Keyboard().Type(searchTerm)
+				}
 			}
 		} else {
 			if err := page.Keyboard().Type(searchTerm); err != nil {
@@ -240,10 +250,22 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		}
 
 		// 2. Date
-		time.Sleep(800 * time.Millisecond)
-		tagInput := page.GetByPlaceholder("TT").Last()
-		monatInput := page.GetByPlaceholder("MM").Last()
-		jahrInput := page.GetByPlaceholder("JJJJ").Last()
+		if err := waitForFocusedBlockContains(page, "Besuchsdatum", 10000); err != nil {
+			time.Sleep(800 * time.Millisecond)
+		}
+		dateBlock := page.Locator("[data-qa-focused='true']").First()
+		tagInput := dateBlock.GetByPlaceholder("TT").First()
+		if count, _ := tagInput.Count(); count == 0 {
+			tagInput = page.GetByPlaceholder("TT").Last()
+		}
+		monatInput := dateBlock.GetByPlaceholder("MM").First()
+		if count, _ := monatInput.Count(); count == 0 {
+			monatInput = page.GetByPlaceholder("MM").Last()
+		}
+		jahrInput := dateBlock.GetByPlaceholder("JJJJ").First()
+		if count, _ := jahrInput.Count(); count == 0 {
+			jahrInput = page.GetByPlaceholder("JJJJ").Last()
+		}
 
 		if err := tagInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_date_input", ticketNum), fmt.Errorf("ticket %d: date inputs not found: %w", ticketNum, err))
@@ -261,7 +283,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 			return failWithScreenshot(fmt.Sprintf("ticket_%d_year_fill", ticketNum), fmt.Errorf("ticket %d: failed to fill year: %w", ticketNum, err))
 		}
 		time.Sleep(300 * time.Millisecond)
-		okDateBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
+		okDateBtn := dateBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
 		if count, _ := okDateBtn.Count(); count > 0 {
 			_ = okDateBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 		}
@@ -269,22 +291,19 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		_ = page.Keyboard().Press("Enter")
 
 		// 3. Ticket Einzelpreis
-		priceInput := page.GetByPlaceholder("Gib hier deine Antwort ein").Or(page.Locator("input[placeholder*='Antwort']:visible")).Last()
+		if err := waitForFocusedBlockContains(page, "Ticket-Einzelpreis", 10000); err != nil {
+			time.Sleep(800 * time.Millisecond)
+		}
+		priceBlock := page.Locator("[data-qa-focused='true']").First()
+		priceInput := priceBlock.Locator("input").First()
+		if count, _ := priceInput.Count(); count == 0 {
+			priceInput = page.GetByPlaceholder("Gib hier deine Antwort ein").Or(page.Locator("input[placeholder*='Antwort']:visible")).Last()
+		}
 		if err := priceInput.WaitFor(playwright.LocatorWaitForOptions{
 			Timeout: playwright.Float(15000),
 			State:   playwright.WaitForSelectorStateVisible,
 		}); err != nil {
-			// Retry advancing from Date if still on Date question
-			if count, _ := okDateBtn.Count(); count > 0 {
-				_ = okDateBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
-			}
-			_ = page.Keyboard().Press("Enter")
-			if waitErr := priceInput.WaitFor(playwright.LocatorWaitForOptions{
-				Timeout: playwright.Float(10000),
-				State:   playwright.WaitForSelectorStateVisible,
-			}); waitErr != nil {
-				return failWithScreenshot(fmt.Sprintf("ticket_%d_price_input", ticketNum), fmt.Errorf("ticket %d: price input not found: %w", ticketNum, waitErr))
-			}
+			return failWithScreenshot(fmt.Sprintf("ticket_%d_price_input", ticketNum), fmt.Errorf("ticket %d: price input not found: %w", ticketNum, err))
 		}
 
 		time.Sleep(400 * time.Millisecond)
@@ -301,7 +320,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		}
 
 		time.Sleep(400 * time.Millisecond)
-		okPriceBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").Last()
+		okPriceBtn := priceBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
 		if count, _ := okPriceBtn.Count(); count > 0 {
 			_ = okPriceBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 		}
@@ -309,7 +328,14 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		_ = page.Keyboard().Press("Enter")
 
 		// 4. File Upload
-		fileInput := page.Locator("input[type='file']").Last()
+		if err := waitForFocusedBlockContains(page, "Rechnungsbeleg hoch", 10000); err != nil {
+			time.Sleep(800 * time.Millisecond)
+		}
+		uploadBlock := page.Locator("[data-qa-focused='true']").First()
+		fileInput := uploadBlock.Locator("input[type='file']").First()
+		if count, _ := fileInput.Count(); count == 0 {
+			fileInput = page.Locator("input[type='file']").Last()
+		}
 		if err := fileInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
 			_ = page.Keyboard().Press("Enter")
 			if waitErr := fileInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); waitErr != nil {
@@ -323,9 +349,12 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 
 		// Wait for upload confirmation and click visible Ok button
 		time.Sleep(2000 * time.Millisecond)
-		okUploadBtn := page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible, button:visible").Filter(playwright.LocatorFilterOptions{
-			HasText: "Ok",
-		}).Last()
+		okUploadBtn := uploadBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+		if count, _ := okUploadBtn.Count(); count == 0 {
+			okUploadBtn = page.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible, button:visible").Filter(playwright.LocatorFilterOptions{
+				HasText: "Ok",
+			}).Last()
+		}
 
 		if err := okUploadBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(20000)}); err == nil {
 			_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
@@ -338,27 +367,26 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 		// 5. More tickets prompt? (Only relevant if not the 10th ticket)
 		if ticketNum < 10 {
 			hasMore := (i < len(batch.Tickets) - 1)
-			time.Sleep(1000 * time.Millisecond)
 
-			// Wait for the "more tickets" question to become visible
-			promptLocator := page.Locator("text=Willst du noch einen weiteren Rechnungsbeleg hochladen").Last()
-			if err := promptLocator.WaitFor(playwright.LocatorWaitForOptions{
-				Timeout: playwright.Float(10000),
-				State:   playwright.WaitForSelectorStateVisible,
-			}); err != nil {
+			// Wait until the focused block is the more tickets prompt
+			if err := waitForFocusedBlockContains(page, "Willst du noch einen weiteren Rechnungsbeleg hochladen", 15000); err != nil {
 				// Retry advancing from upload screen if prompt has not appeared yet
 				if count, _ := okUploadBtn.Count(); count > 0 {
 					_ = okUploadBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
 				}
 				_ = page.Keyboard().Press("Enter")
-				_ = promptLocator.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				})
+				if retryErr := waitForFocusedBlockContains(page, "Willst du noch einen weiteren Rechnungsbeleg hochladen", 10000); retryErr != nil {
+					return failWithScreenshot(fmt.Sprintf("ticket_%d_prompt_wait", ticketNum), fmt.Errorf("ticket %d: more tickets prompt not found: %w", ticketNum, retryErr))
+				}
 			}
 
+			promptBlock := page.Locator("[data-qa-focused='true']").First()
+
 			if hasMore {
-				jaChoice := page.Locator("button[value$='-yes'], [role='radio']:has-text('Ja'):visible, [data-qa*='choice']:has-text('Ja'):visible, button:has-text('Ja'):visible").Last()
+				jaChoice := promptBlock.Locator("[role='radio']:has-text('Ja'), button:has-text('Ja')").First()
+				if count, _ := jaChoice.Count(); count == 0 {
+					jaChoice = promptBlock.Locator("button[value$='-yes'], [data-qa*='choice']:has-text('Ja')").First()
+				}
 				if err := jaChoice.WaitFor(playwright.LocatorWaitForOptions{
 					Timeout: playwright.Float(10000),
 					State:   playwright.WaitForSelectorStateVisible,
@@ -368,18 +396,22 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 					_ = page.Keyboard().Press("j")
 				}
 
-				time.Sleep(800 * time.Millisecond)
-
 				// Verify transition away from prompt to the next ticket's dropdown/question
-				nextDropdownLocator := page.Locator("[data-qa*='blocktype']:has-text('Schwimmbad'), button:has-text('Option eingeben oder aussuchen'), [role='combobox']").Last()
-				if err := nextDropdownLocator.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err != nil {
+				if err := waitForFocusedBlockNotContains(page, "Willst du noch einen weiteren Rechnungsbeleg hochladen", 2500); err != nil {
+					promptOk := promptBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+					if count, _ := promptOk.Count(); count > 0 {
+						_ = promptOk.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 					_ = page.Keyboard().Press("Enter")
+					if waitErr := waitForFocusedBlockNotContains(page, "Willst du noch einen weiteren Rechnungsbeleg hochladen", 10000); waitErr != nil {
+						return failWithScreenshot(fmt.Sprintf("ticket_%d_prompt_advance", ticketNum), fmt.Errorf("ticket %d: failed to advance after selecting 'Ja': %w", ticketNum, waitErr))
+					}
 				}
 			} else {
-				neinChoice := page.Locator("button[value$='-no'], [role='radio']:has-text('Nein'):visible, [data-qa*='choice']:has-text('Nein'):visible, button:has-text('Nein'):visible").Last()
+				neinChoice := promptBlock.Locator("[role='radio']:has-text('Nein'), button:has-text('Nein')").First()
+				if count, _ := neinChoice.Count(); count == 0 {
+					neinChoice = promptBlock.Locator("button[value$='-no'], [data-qa*='choice']:has-text('Nein')").First()
+				}
 				if err := neinChoice.WaitFor(playwright.LocatorWaitForOptions{
 					Timeout: playwright.Float(10000),
 					State:   playwright.WaitForSelectorStateVisible,
@@ -389,27 +421,29 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 					_ = page.Keyboard().Press("n")
 				}
 
-				time.Sleep(800 * time.Millisecond)
-
 				// Verify transition away from prompt to personal info (Vor- und Nachname)
-				nameBlock := page.Locator("[data-qa*='blocktype']:has-text('Vor- und Nachname'), div:has-text('Vor- und Nachname')").First()
-				if err := nameBlock.WaitFor(playwright.LocatorWaitForOptions{
-					Timeout: playwright.Float(10000),
-					State:   playwright.WaitForSelectorStateVisible,
-				}); err != nil {
-					// Fallback if needed
+				if err := waitForFocusedBlockContains(page, "Vor- und Nachname", 2500); err != nil {
+					promptOk := promptBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+					if count, _ := promptOk.Count(); count > 0 {
+						_ = promptOk.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+					}
 					_ = page.Keyboard().Press("Enter")
+					if waitErr := waitForFocusedBlockContains(page, "Vor- und Nachname", 10000); waitErr != nil {
+						return failWithScreenshot("prompt_nein_transition", fmt.Errorf("failed to advance to Vor- und Nachname after selecting 'Nein': %w", waitErr))
+					}
 				}
 			}
 		}
 	}
 
 	// Step 4: Personal Information (Vor- und Nachname)
-	time.Sleep(1000 * time.Millisecond)
-	nameBlock := page.Locator("[data-qa*='blocktype']:has-text('Vor- und Nachname')").First()
+	if err := waitForFocusedBlockContains(page, "Vor- und Nachname", 15000); err != nil {
+		return failWithScreenshot("name_block", fmt.Errorf("personal info block ('Vor- und Nachname') not focused: %w", err))
+	}
+	nameBlock := page.Locator("[data-qa-focused='true']").First()
 	nameInput := nameBlock.Locator("input").First()
 	if count, _ := nameInput.Count(); count == 0 {
-		nameInput = page.Locator("input[type='short_text'], input:not([type='file']):not([type='radio']):not([type='checkbox'])").First()
+		nameInput = page.Locator("input[type='short_text'], input:not([type='file']):not([type='radio']):not([type='checkbox']):visible").Last()
 	}
 	if err := nameInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000), State: playwright.WaitForSelectorStateVisible}); err != nil {
 		return failWithScreenshot("name_input", fmt.Errorf("name input not found: %w", err))
@@ -423,14 +457,20 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	}
 	takeScreenshot("04_name_filled")
 	time.Sleep(300 * time.Millisecond)
+	okNameBtn := nameBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+	if count, _ := okNameBtn.Count(); count > 0 {
+		_ = okNameBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+	}
 	_ = page.Keyboard().Press("Enter")
 
 	// Step 5: IBAN
-	time.Sleep(1000 * time.Millisecond)
-	ibanBlock := page.Locator("[data-qa*='blocktype']:has-text('IBAN')").First()
+	if err := waitForFocusedBlockContains(page, "IBAN", 15000); err != nil {
+		return failWithScreenshot("iban_block", fmt.Errorf("IBAN block not focused: %w", err))
+	}
+	ibanBlock := page.Locator("[data-qa-focused='true']").First()
 	ibanInput := ibanBlock.Locator("input").First()
 	if count, _ := ibanInput.Count(); count == 0 {
-		ibanInput = page.Locator("input[maxlength='27'], input[placeholder*='Antwort']").First()
+		ibanInput = page.Locator("input[maxlength='27'], input[placeholder*='Antwort']:visible").Last()
 	}
 	if err := ibanInput.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000), State: playwright.WaitForSelectorStateVisible}); err != nil {
 		return failWithScreenshot("iban_input", fmt.Errorf("IBAN input not found: %w", err))
@@ -444,11 +484,17 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	}
 	takeScreenshot("05_iban_filled")
 	time.Sleep(300 * time.Millisecond)
+	okIbanBtn := ibanBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+	if count, _ := okIbanBtn.Count(); count > 0 {
+		_ = okIbanBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+	}
 	_ = page.Keyboard().Press("Enter")
 
 	// Step 6: BIC
-	time.Sleep(1000 * time.Millisecond)
-	bicBlock := page.Locator("[data-qa*='blocktype']:has-text('BIC')").First()
+	if err := waitForFocusedBlockContains(page, "BIC", 15000); err != nil {
+		return failWithScreenshot("bic_block", fmt.Errorf("BIC block not focused: %w", err))
+	}
+	bicBlock := page.Locator("[data-qa-focused='true']").First()
 	bicInput := bicBlock.Locator("input").First()
 	if count, _ := bicInput.Count(); count == 0 {
 		bicInput = page.Locator("input:not([type='file']):not([type='radio']):not([type='checkbox']):visible").Last()
@@ -465,11 +511,17 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 	}
 	takeScreenshot("06_bic_filled")
 	time.Sleep(300 * time.Millisecond)
+	okBicBtn := bicBlock.Locator("button:has-text('Ok'):visible, [data-qa*='ok-button']:visible").First()
+	if count, _ := okBicBtn.Count(); count > 0 {
+		_ = okBicBtn.Click(playwright.LocatorClickOptions{Force: playwright.Bool(true)})
+	}
 	_ = page.Keyboard().Press("Enter")
 
 	// Step 7: Confirmation / Declaration Checkbox/Radio
-	time.Sleep(1500 * time.Millisecond)
-	declBlock := page.Locator("[data-qa*='blocktype']:has-text('Ich versichere hiermit'), div:has-text('Ich versichere hiermit')").Last()
+	if err := waitForFocusedBlockContains(page, "Ich versichere hiermit", 15000); err != nil {
+		return failWithScreenshot("decl_block", fmt.Errorf("declaration block not focused: %w", err))
+	}
+	declBlock := page.Locator("[data-qa-focused='true']").First()
 	declRadio := declBlock.Locator("[role='radio'], button:has-text('Ja')").First()
 	if count, _ := declRadio.Count(); count == 0 {
 		declRadio = page.Locator("[role='radio']:has-text('Ja'):visible, button:has-text('Ja'):not([data-qa*='submit']):visible").First()
@@ -493,7 +545,7 @@ func (s *PlaywrightSubmitter) Submit(ctx context.Context, batch SubmissionBatch)
 			Or(page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Senden"})).
 			Or(page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Antworten übermitteln"})).Last()
 	}
-	if err := submitBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(10000)}); err != nil {
+	if err := submitBtn.WaitFor(playwright.LocatorWaitForOptions{Timeout: playwright.Float(15000)}); err != nil {
 		return failWithScreenshot("submit_btn", fmt.Errorf("final submit button not found: %w", err))
 	}
 
@@ -531,4 +583,28 @@ func extractSearchTerm(poolLabel string) string {
 		return words[0]
 	}
 	return poolLabel
+}
+
+func waitForFocusedBlockContains(page playwright.Page, text string, timeoutMs float64) error {
+	_, err := page.WaitForFunction(
+		`text => {
+			const active = document.querySelector('[data-qa-focused="true"]');
+			return active && active.textContent.includes(text);
+		}`,
+		text,
+		playwright.PageWaitForFunctionOptions{Timeout: playwright.Float(timeoutMs)},
+	)
+	return err
+}
+
+func waitForFocusedBlockNotContains(page playwright.Page, text string, timeoutMs float64) error {
+	_, err := page.WaitForFunction(
+		`text => {
+			const active = document.querySelector('[data-qa-focused="true"]');
+			return active && !active.textContent.includes(text);
+		}`,
+		text,
+		playwright.PageWaitForFunctionOptions{Timeout: playwright.Float(timeoutMs)},
+	)
+	return err
 }
